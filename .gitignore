@@ -1,0 +1,61 @@
+# Environment and secret files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.crt
+
+# Node.js / Web
+node_modules/
+.next/
+out/
+build/
+dist/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Go binaries and coverage
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+coverage.html
+/services/api/bin/
+/services/worker/bin/
+
+# Python virtual environment and cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Test and temporary artifacts
+/tests/e2e/test-results/
+/tests/e2e/playwright-report/
+tmp/
+*.tmp

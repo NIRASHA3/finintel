@@ -1,0 +1,405 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AI Intelligence Center - FinIntel</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error": "#ba1a1a",
+                      "surface-container-highest": "#e1e3e4",
+                      "surface-container-low": "#f3f4f5",
+                      "on-tertiary-container": "#d16500",
+                      "surface-container-lowest": "#ffffff",
+                      "on-surface-variant": "#43474c",
+                      "on-secondary": "#ffffff",
+                      "surface-dim": "#d9dadb",
+                      "secondary-fixed": "#abedfb",
+                      "on-secondary-fixed": "#001f25",
+                      "primary": "#000000",
+                      "tertiary": "#000000",
+                      "primary-fixed-dim": "#b4c9dd",
+                      "on-primary-container": "#728699",
+                      "secondary-container": "#a8eaf8",
+                      "primary-container": "#071d2d",
+                      "on-tertiary": "#ffffff",
+                      "outline": "#73777c",
+                      "on-surface": "#191c1d",
+                      "inverse-on-surface": "#f0f1f2",
+                      "on-error-container": "#93000a",
+                      "on-background": "#191c1d",
+                      "on-primary-fixed-variant": "#35495a",
+                      "on-tertiary-fixed-variant": "#733500",
+                      "surface-tint": "#4c6172",
+                      "tertiary-container": "#311300",
+                      "on-primary": "#ffffff",
+                      "secondary": "#1e6773",
+                      "surface": "#f8f9fa",
+                      "primary-fixed": "#d0e5fa",
+                      "on-error": "#ffffff",
+                      "on-primary-fixed": "#071d2d",
+                      "secondary-fixed-dim": "#8fd1de",
+                      "surface-container": "#edeeef",
+                      "tertiary-fixed-dim": "#ffb689",
+                      "outline-variant": "#c3c7cc",
+                      "surface-container-high": "#e7e8e9",
+                      "surface-variant": "#e1e3e4",
+                      "background": "#f8f9fa",
+                      "inverse-surface": "#2e3132",
+                      "on-secondary-container": "#246b78",
+                      "on-tertiary-fixed": "#311300",
+                      "surface-bright": "#f8f9fa",
+                      "error-container": "#ffdad6",
+                      "inverse-primary": "#b4c9dd",
+                      "tertiary-fixed": "#ffdbc8",
+                      "on-secondary-fixed-variant": "#004e59"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "2xl": "48px",
+                      "sm": "12px",
+                      "xs": "8px",
+                      "margin-desktop": "40px",
+                      "margin-mobile": "16px",
+                      "lg": "24px",
+                      "xl": "32px",
+                      "md": "16px",
+                      "base": "4px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "title-md": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "mono-data": [
+                              "JetBrains Mono"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "title-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "mono-data": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ai-glow {
+            box-shadow: 0 0 15px rgba(21, 97, 109, 0.2);
+        }
+        .card-shadow {
+            box-shadow: 0px 1px 3px rgba(0,0,0,0.05), 0px 10px 15px -5px rgba(0,0,0,0.03);
+        }
+        .ai-text-gradient {
+            background: linear-gradient(90deg, #1e6773 0%, #001f25 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex">
+<!-- SideNavBar -->
+<nav class="hidden lg:flex flex-col h-screen py-lg border-r border-outline-variant bg-surface-container-low w-64 fixed left-0 top-0 z-40">
+<div class="px-md mb-xl flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold">GF</div>
+<div>
+<h2 class="font-title-md text-title-md font-semibold text-primary">Global Finance Corp</h2>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Enterprise Tier</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto flex flex-col gap-xs px-sm">
+<a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_13}}">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_15}}">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">account_balance</span>
+<span class="font-label-caps text-label-caps">Ledger</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_21}}">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">receipt_long</span>
+<span class="font-label-caps text-label-caps">Transactions</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_8}}">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">assessment</span>
+<span class="font-label-caps text-label-caps">Reports</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-2 rounded-lg text-primary font-bold border-r-4 border-primary translate-x-1 duration-150 bg-surface-container-highest" href="{{DATA:SCREEN:SCREEN_23}}">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<span class="font-label-caps text-label-caps">AI Intelligence</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_6}}">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">query_stats</span>
+<span class="font-label-caps text-label-caps">Forecasting</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_14}}">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">monitoring</span>
+<span class="font-label-caps text-label-caps">Analytics</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group mt-auto" href="{{DATA:SCREEN:SCREEN_9}}">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+</div>
+<div class="px-md mt-lg">
+<button class="w-full bg-[#001524] text-[#FFFFFF] font-bold py-2 rounded-lg hover:bg-opacity-90 transition-colors">Upgrade Plan</button>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 lg:ml-64 flex flex-col min-h-screen relative">
+<!-- TopNavBar -->
+<header class="sticky top-0 z-50 flex justify-between items-center px-margin-desktop w-full h-16 bg-surface-container-lowest shadow-[0px_1px_3px_rgba(0,0,0,0.05),0px_10px_15px_-5px_rgba(0,0,0,0.03)] font-body-md text-body-md">
+<div class="flex items-center gap-lg">
+<span class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary lg:hidden">FinIntel</span>
+<nav class="hidden md:flex gap-md">
+<!-- Navigation links typically go here, but omitted as per AI Intelligence focus -->
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<button class="px-md py-xs bg-primary text-on-primary rounded-lg font-body-sm text-body-sm hover:opacity-90 transition-opacity">Add Entry</button>
+<div class="flex gap-xs text-on-surface-variant">
+<button class="p-xs hover:text-primary transition-colors"><span class="material-symbols-outlined">notifications</span></button>
+<button class="p-xs hover:text-primary transition-colors"><span class="material-symbols-outlined">apps</span></button>
+<button class="p-xs hover:text-primary transition-colors"><span class="material-symbols-outlined">account_circle</span></button>
+</div>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<main class="flex-1 p-margin-mobile md:p-margin-desktop max-w-[1440px] mx-auto w-full">
+<div class="mb-xl">
+<h2 class="font-headline-lg text-headline-lg text-primary ai-text-gradient mb-xs flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">psychology</span>
+                    AI Intelligence Center
+                </h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">Real-time algorithmic analysis and predictive financial modeling for Global Finance Corp.</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- Financial Health Score (Hero Card) -->
+<div class="md:col-span-4 bg-surface-container-lowest rounded-xl p-lg card-shadow border border-surface-variant relative overflow-hidden flex flex-col items-center justify-center min-h-[320px]">
+<div class="absolute top-0 right-0 p-sm">
+<span class="material-symbols-outlined text-secondary opacity-50">info</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mb-xl self-start w-full">Financial Health</h3>
+<div class="relative w-48 h-48 flex items-center justify-center">
+<!-- Simulated SVG Gauge -->
+<svg class="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" r="45" stroke="#f3f4f5" stroke-width="8"></circle>
+<circle class="transition-all duration-1000 ease-out" cx="50" cy="50" fill="none" r="45" stroke="#1e6773" stroke-dasharray="283" stroke-dashoffset="22" stroke-width="8"></circle>
+</svg>
+<div class="text-center z-10 flex flex-col items-center">
+<span class="font-display-lg text-display-lg text-primary leading-none font-mono-data">92</span>
+<span class="font-label-caps text-label-caps text-secondary mt-base bg-secondary-fixed text-on-secondary-fixed px-xs py-[2px] rounded-sm">EXCELLENT</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-md text-center">Top 5% of enterprise peers.</p>
+</div>
+<!-- Narrative Insights -->
+<div class="md:col-span-8 bg-surface-container-lowest rounded-xl p-lg card-shadow border border-surface-variant relative ai-glow">
+<div class="flex justify-between items-start mb-md">
+<h3 class="font-title-md text-title-md text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-secondary">auto_awesome</span>
+                            Executive Summary
+                        </h3>
+<span class="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-sm py-xs rounded-full">Updated 2m ago</span>
+</div>
+<div class="space-y-sm">
+<p class="font-body-md text-body-md text-on-surface leading-relaxed">
+                            Cash flow velocity has increased by <strong>14.2%</strong> quarter-over-quarter, driven primarily by optimized vendor payment terms negotiated in Q2. The algorithm detects a high probability (89%) of sustained liquidity surplus through year-end.
+                        </p>
+<p class="font-body-md text-body-md text-on-surface leading-relaxed">
+                            However, marketing spend efficiency in the EMEA region has degraded, indicating a potential need for reallocation. We recommend pausing campaign set Alpha-7 pending further review.
+                        </p>
+</div>
+<div class="mt-md flex gap-sm">
+<button class="px-md py-xs border border-outline rounded-lg font-body-sm text-body-sm hover:bg-surface-container-low transition-colors text-on-surface">Generate Full Report</button>
+</div>
+</div>
+<!-- Forecasting Chart -->
+<div class="md:col-span-8 bg-surface-container-lowest rounded-xl p-lg card-shadow border border-surface-variant min-h-[400px] flex flex-col">
+<div class="flex justify-between items-center mb-lg">
+<h3 class="font-title-md text-title-md text-on-surface">Revenue Forecast (30/60/90 Days)</h3>
+<div class="flex gap-xs">
+<button class="px-sm py-xs bg-surface-container-low rounded text-label-caps font-label-caps text-on-surface">30D</button>
+<button class="px-sm py-xs bg-primary text-on-primary rounded text-label-caps font-label-caps">90D</button>
+<button class="px-sm py-xs bg-surface-container-low rounded text-label-caps font-label-caps text-on-surface">1Y</button>
+</div>
+</div>
+<!-- Simulated Chart Area -->
+<div class="flex-1 relative w-full h-full border-b border-l border-surface-variant ml-lg mb-lg">
+<!-- Y-Axis Labels -->
+<div class="absolute -left-12 top-0 bottom-0 flex flex-col justify-between font-mono-data text-mono-data text-on-surface-variant text-right w-10">
+<span class="">$5M</span>
+<span class="">$4M</span>
+<span class="">$3M</span>
+<span class="">$2M</span>
+</div>
+<!-- Grid Lines -->
+<div class="absolute inset-0 flex flex-col justify-between">
+<div class="w-full border-t border-surface-variant border-dashed"></div>
+<div class="w-full border-t border-surface-variant border-dashed"></div>
+<div class="w-full border-t border-surface-variant border-dashed"></div>
+<div class="w-full border-t border-surface-variant border-dashed"></div>
+</div>
+<!-- Shaded Confidence Interval (Simulated with SVG) -->
+<svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+<path d="M0,50 Q25,45 50,30 T100,20 L100,80 Q75,70 50,60 T0,70 Z" fill="rgba(21, 97, 109, 0.1)"></path>
+<!-- Primary Trend Line -->
+<path d="M0,60 Q25,55 50,45 T100,30" fill="none" stroke="#1e6773" stroke-width="2"></path>
+</svg>
+<!-- X-Axis Labels -->
+<div class="absolute -bottom-8 left-0 right-0 flex justify-between font-mono-data text-mono-data text-on-surface-variant px-md">
+<span class="">Today</span>
+<span class="">+30d</span>
+<span class="">+60d</span>
+<span class="">+90d</span>
+</div>
+</div>
+</div>
+<!-- Anomaly Detection & Recommendations -->
+<div class="md:col-span-4 flex flex-col gap-gutter">
+<!-- Anomaly Detection -->
+<div class="bg-error-container rounded-xl p-lg border border-error bg-opacity-20 flex-1">
+<div class="flex items-center gap-sm mb-md text-on-error-container">
+<span class="material-symbols-outlined">warning</span>
+<h3 class="font-title-md text-title-md">High Risk Anomalies</h3>
+<span class="ml-auto bg-error text-on-error font-label-caps text-label-caps px-xs py-[2px] rounded-full">2</span>
+</div>
+<div class="space-y-sm">
+<div class="bg-surface-container-lowest p-sm shadow-sm border border-secondary rounded-xl">
+<div class="flex justify-between items-start mb-xs">
+<span class="font-label-caps text-label-caps text-error">Expense Flag</span>
+<span class="font-mono-data text-mono-data text-on-surface-variant">May 14</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface">Unusual travel expense spike detected in London office.</p>
+<div class="mt-sm flex justify-end gap-xs">
+<button class="text-label-caps font-label-caps text-on-surface-variant hover:text-primary">Dismiss</button>
+<button class="text-label-caps font-label-caps text-error hover:underline">Investigate</button>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-sm shadow-sm border border-secondary rounded-xl">
+<div class="flex justify-between items-start mb-xs">
+<span class="font-label-caps text-label-caps text-error">Pattern Alert</span>
+<span class="font-mono-data text-mono-data text-on-surface-variant">May 12</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface">Multiple duplicate invoices flagged for Vendor ID: V-8892.</p>
+</div>
+</div>
+</div>
+<!-- Smart Recommendations -->
+<div class="bg-surface-container-lowest rounded-xl p-lg card-shadow border flex-1 ai-glow border-secondary">
+<div class="flex items-center gap-sm mb-md text-secondary">
+<span class="material-symbols-outlined">lightbulb</span>
+<h3 class="font-title-md text-title-md text-on-surface">Smart Recommendation</h3>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-md">Consolidate AWS instances across US-East regions to optimize reserved instance pricing tiers.</p>
+<div class="grid grid-cols-2 gap-sm mb-md">
+<div class="bg-surface-container-low p-sm rounded-lg">
+<span class="block font-label-caps text-label-caps text-on-surface-variant mb-xs">IMPACT</span>
+<span class="font-mono-data text-mono-data text-secondary font-bold">Save $12,400</span>
+</div>
+<div class="bg-surface-container-low p-sm rounded-lg">
+<span class="block font-label-caps text-label-caps text-on-surface-variant mb-xs">CONFIDENCE</span>
+<span class="font-mono-data text-mono-data text-primary font-bold">98%</span>
+</div>
+</div>
+<button class="w-full py-sm bg-primary text-on-primary rounded-lg font-body-sm text-body-sm hover:opacity-90 transition-opacity">Apply Recommendation</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+
+
+
+</body></html>

@@ -1,0 +1,444 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>FinIntel - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed-variant": "#733500",
+                        "background": "#f8f9fa",
+                        "on-tertiary": "#ffffff",
+                        "surface-variant": "#e1e3e4",
+                        "secondary-fixed": "#abedfb",
+                        "tertiary": "#000000",
+                        "secondary": "#1e6773",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#b4c9dd",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed": "#071d2d",
+                        "on-primary-container": "#728699",
+                        "on-tertiary-container": "#d16500",
+                        "surface-container-highest": "#e1e3e4",
+                        "secondary-container": "#a8eaf8",
+                        "on-background": "#191c1d",
+                        "surface-container-low": "#f3f4f5",
+                        "outline-variant": "#c3c7cc",
+                        "surface-tint": "#4c6172",
+                        "on-primary-fixed-variant": "#35495a",
+                        "primary": "#000000",
+                        "on-surface": "#191c1d",
+                        "secondary-fixed-dim": "#8fd1de",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-tertiary-fixed": "#311300",
+                        "inverse-surface": "#2e3132",
+                        "surface-container-high": "#e7e8e9",
+                        "primary-container": "#071d2d",
+                        "on-secondary-container": "#246b78",
+                        "tertiary-container": "#311300",
+                        "tertiary-fixed": "#ffdbc8",
+                        "surface-bright": "#f8f9fa",
+                        "tertiary-fixed-dim": "#ffb689",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#d9dadb",
+                        "outline": "#73777c",
+                        "on-error-container": "#93000a",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#d0e5fa",
+                        "surface-container": "#edeeef",
+                        "on-secondary-fixed-variant": "#004e59",
+                        "on-secondary-fixed": "#001f25",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed-dim": "#b4c9dd",
+                        "on-surface-variant": "#43474c",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f8f9fa"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "xs": "8px",
+                        "margin-mobile": "16px",
+                        "base": "4px",
+                        "2xl": "48px",
+                        "lg": "24px",
+                        "margin-desktop": "40px",
+                        "xl": "32px",
+                        "sm": "12px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "mono-data": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "title-md": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "mono-data": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "title-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex flex-col md:flex-row">
+<!-- SideNavBar -->
+<nav class="hidden lg:flex flex-col h-screen py-lg border-r border-outline-variant bg-surface-container-low w-64 fixed left-0 top-0 z-40">
+<div class="px-md mb-xl flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold">GF</div>
+<div>
+<h2 class="font-title-md text-title-md font-semibold text-primary">Global Finance Corp</h2>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Enterprise Tier</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto flex flex-col gap-xs px-sm"><a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_13}}"><span class="material-symbols-outlined group-hover:text-primary transition-colors">dashboard</span><span class="font-label-caps text-label-caps">Dashboard</span></a><a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_15}}"><span class="material-symbols-outlined group-hover:text-primary transition-colors">account_balance</span><span class="font-label-caps text-label-caps">Ledger</span></a><a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_21}}"><span class="material-symbols-outlined group-hover:text-primary transition-colors">receipt_long</span><span class="font-label-caps text-label-caps">Transactions</span></a><a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_8}}"><span class="material-symbols-outlined group-hover:text-primary transition-colors">assessment</span><span class="font-label-caps text-label-caps">Reports</span></a><a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_23}}"><span class="material-symbols-outlined group-hover:text-primary transition-colors">psychology</span><span class="font-label-caps text-label-caps">AI Intelligence</span></a><a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_6}}"><span class="material-symbols-outlined group-hover:text-primary transition-colors">query_stats</span><span class="font-label-caps text-label-caps">Forecasting</span></a><a class="flex items-center gap-sm px-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="{{DATA:SCREEN:SCREEN_14}}"><span class="material-symbols-outlined group-hover:text-primary transition-colors">monitoring</span><span class="font-label-caps text-label-caps">Analytics</span></a><a class="flex items-center gap-sm px-sm py-2 rounded-lg text-primary font-bold border-r-4 border-primary translate-x-1 duration-150 bg-surface-container-highest mt-auto" href="{{DATA:SCREEN:SCREEN_9}}"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span><span class="font-label-caps text-label-caps">Settings</span></a></div>
+<div class="px-md mt-lg">
+<button class="w-full bg-[#001524] text-[#FFFFFF] font-bold py-2 rounded-lg hover:bg-opacity-90 transition-colors">Upgrade Plan</button>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col min-w-0 lg:ml-64 relative">
+<!-- TopNavBar (Web) -->
+<header class="hidden md:flex sticky top-0 z-50 justify-between items-center px-margin-desktop w-full h-16 bg-surface-container-lowest dark:bg-surface-container-lowest shadow-sm shadow-[0px_1px_3px_rgba(0,0,0,0.05),0px_10px_15px_-5px_rgba(0,0,0,0.03)] font-body-md text-body-md">
+<div class="flex items-center gap-xl">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg font-bold text-primary dark:text-primary-fixed">FinIntel</h1>
+<nav class="flex gap-lg">
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Portfolio</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Markets</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<button class="flex items-center justify-center p-sm rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="flex items-center justify-center p-sm rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<button class="flex items-center justify-center p-sm rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="ml-sm py-sm px-md bg-primary text-on-primary rounded-lg font-label-caps text-label-caps hover:bg-opacity-90 transition-colors flex justify-center items-center gap-xs">
+                    Add Entry
+                </button>
+</div>
+</header>
+<!-- Page Content -->
+<div class="p-margin-mobile md:p-margin-desktop max-w-[1440px] mx-auto w-full flex-1">
+<div class="mb-xl">
+<h1 class="font-display-lg text-display-lg text-primary mb-xs">Settings</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage your organization's preferences, team access, and security policies.</p>
+</div>
+<!-- Settings Layout -->
+<div class="flex flex-col lg:flex-row gap-xl items-start">
+<!-- Sub-navigation -->
+<aside class="w-full lg:w-64 shrink-0 sticky top-24">
+<nav class="flex flex-row lg:flex-col gap-sm overflow-x-auto lg:overflow-visible pb-sm lg:pb-0 hide-scrollbar">
+<button class="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors font-body-md text-body-md whitespace-nowrap text-left w-full">
+<span class="material-symbols-outlined text-outline">business</span>
+                            Company Profile
+                        </button>
+<button class="flex items-center gap-sm px-md py-sm rounded-lg bg-surface-container-lowest shadow-[0px_1px_3px_rgba(0,0,0,0.05),0px_10px_15px_-5px_rgba(0,0,0,0.03)] border border-outline-variant/20 text-primary font-body-md text-body-md font-semibold whitespace-nowrap text-left w-full">
+<span class="material-symbols-outlined text-primary">group</span>
+                            User Management
+                        </button>
+<button class="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors font-body-md text-body-md whitespace-nowrap text-left w-full">
+<span class="material-symbols-outlined text-outline">extension</span>
+                            Integrations
+                        </button>
+<button class="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors font-body-md text-body-md whitespace-nowrap text-left w-full">
+<span class="material-symbols-outlined text-outline">security</span>
+                            Security
+                        </button>
+</nav>
+</aside>
+<!-- Settings Panels Container -->
+<div class="flex-1 w-full space-y-xl">
+<!-- User Management Panel -->
+<section class="bg-surface-container-lowest rounded-xl shadow-[0px_1px_3px_rgba(0,0,0,0.05),0px_10px_15px_-5px_rgba(0,0,0,0.03)] border border-outline-variant/10 overflow-hidden">
+<div class="p-lg border-b border-surface-container-low flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md">
+<div>
+<h3 class="font-title-md text-title-md text-primary">Team Members</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Manage access and roles for your organization.</p>
+</div>
+<button class="py-xs px-md bg-secondary text-on-secondary rounded-lg font-label-caps text-label-caps hover:bg-opacity-90 transition-colors flex justify-center items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+                                Invite Member
+                            </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="py-sm px-lg font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold border-b border-surface-container">User</th>
+<th class="py-sm px-lg font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold border-b border-surface-container">Role</th>
+<th class="py-sm px-lg font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold border-b border-surface-container">Status</th>
+<th class="py-sm px-lg font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold border-b border-surface-container text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm">
+<tr class="border-b border-surface-container-low hover:bg-surface-bright transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-semibold text-xs">
+                                                    JD
+                                                </div>
+<div>
+<p class="font-semibold text-on-surface">Jane Doe</p>
+<p class="text-on-surface-variant text-xs">jane.doe@globalfinance.com</p>
+</div>
+</div>
+</td>
+<td class="py-md px-lg text-on-surface">Owner</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary-fixed/20 text-secondary text-xs font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Active
+                                            </span>
+</td>
+<td class="py-md px-lg text-right">
+<button class="text-on-surface-variant hover:text-primary p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="border-b border-surface-container-low hover:bg-surface-bright transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-tint text-on-primary flex items-center justify-center font-semibold text-xs">
+                                                    AS
+                                                </div>
+<div>
+<p class="font-semibold text-on-surface">Alan Smith</p>
+<p class="text-on-surface-variant text-xs">alan.smith@globalfinance.com</p>
+</div>
+</div>
+</td>
+<td class="py-md px-lg text-on-surface">Accountant</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary-fixed/20 text-secondary text-xs font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Active
+                                            </span>
+</td>
+<td class="py-md px-lg text-right">
+<button class="text-on-surface-variant hover:text-primary p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="border-b border-surface-container-low hover:bg-surface-bright transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-outline text-on-primary flex items-center justify-center font-semibold text-xs">
+                                                    EJ
+                                                </div>
+<div>
+<p class="font-semibold text-on-surface">Emily Jones</p>
+<p class="text-on-surface-variant text-xs">emily.jones@globalfinance.com</p>
+</div>
+</div>
+</td>
+<td class="py-md px-lg text-on-surface">Analyst</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface-variant text-on-surface-variant text-xs font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span> Pending
+                                            </span>
+</td>
+<td class="py-md px-lg text-right">
+<button class="text-on-surface-variant hover:text-primary p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Integrations Panel -->
+<section class="space-y-md">
+<div>
+<h3 class="font-title-md text-title-md text-primary">Connected Apps &amp; Integrations</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Manage external data sources and financial connections.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest rounded-xl p-md shadow-[0px_1px_3px_rgba(0,0,0,0.05),0px_10px_15px_-5px_rgba(0,0,0,0.03)] border border-outline-variant/10 flex flex-col h-full shadow-sm">
+<div class="flex justify-between items-start mb-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center border border-outline-variant/20">
+<span class="material-symbols-outlined text-secondary" style="font-size: 28px;">account_balance</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary-fixed/20 text-secondary text-[10px] uppercase font-bold tracking-wider">
+                                        Connected
+                                    </span>
+</div>
+<h4 class="font-title-md text-base text-primary font-semibold">Plaid Banking</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 flex-1">Syncs daily transactions from 4 connected accounts.</p>
+<div class="mt-md pt-md border-t border-surface-container-low flex justify-between items-center">
+<span class="font-label-caps text-[10px] text-outline font-mono-data">Last sync: 2h ago</span>
+<button class="text-on-surface-variant hover:text-primary text-sm font-semibold transition-colors">Configure</button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest rounded-xl p-md shadow-[0px_1px_3px_rgba(0,0,0,0.05),0px_10px_15px_-5px_rgba(0,0,0,0.03)] border border-outline-variant/10 flex flex-col h-full shadow-sm">
+<div class="flex justify-between items-start mb-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center border border-outline-variant/20">
+<span class="material-symbols-outlined text-secondary" style="font-size: 28px;">sync_alt</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary-fixed/20 text-secondary text-[10px] uppercase font-bold tracking-wider">
+                                        Connected
+                                    </span>
+</div>
+<h4 class="font-title-md text-base text-primary font-semibold">QuickBooks ERP</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 flex-1">Two-way ledger synchronization and invoice tracking.</p>
+<div class="mt-md pt-md border-t border-surface-container-low flex justify-between items-center">
+<span class="font-label-caps text-[10px] text-outline font-mono-data">Last sync: 12m ago</span>
+<button class="text-on-surface-variant hover:text-primary text-sm font-semibold transition-colors">Configure</button>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest rounded-xl p-md border border-dashed border-outline-variant/40 flex flex-col items-center justify-center h-full text-center hover:bg-surface-bright transition-colors cursor-pointer group shadow-sm">
+<div class="w-12 h-12 rounded-full bg-surface-container-low flex items-center justify-center mb-sm group-hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-primary-container transition-colors">add</span>
+</div>
+<h4 class="font-title-md text-base text-primary font-semibold">Add Integration</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Connect Xero, Stripe, or Custom API</p>
+</div>
+</div>
+</section>
+<!-- Security Panel -->
+<section class="bg-surface-container-lowest rounded-xl shadow-[0px_1px_3px_rgba(0,0,0,0.05),0px_10px_15px_-5px_rgba(0,0,0,0.03)] border border-outline-variant/10 overflow-hidden shadow-sm">
+<div class="p-lg border-b border-surface-container-low">
+<h3 class="font-title-md text-title-md text-primary">Security &amp; Compliance</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Enforce security policies across your organization.</p>
+</div>
+<div class="p-lg space-y-lg">
+<!-- Setting Item -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md pb-lg border-b border-surface-container-low">
+<div class="flex gap-md">
+<div class="mt-1 text-on-surface-variant">
+<span class="material-symbols-outlined">phonelink_lock</span>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface text-base">Two-Factor Authentication (2FA)</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Require all team members to use 2FA for login.</p>
+</div>
+</div>
+<div class="shrink-0">
+<!-- Toggle Switch -->
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value="">
+<div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-variant after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+<span class="ml-3 text-sm font-medium text-on-surface-variant peer-checked:text-secondary">Enforced</span>
+</label>
+</div>
+</div>
+<!-- Setting Item -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md pb-lg border-b border-surface-container-low">
+<div class="flex gap-md">
+<div class="mt-1 text-on-surface-variant">
+<span class="material-symbols-outlined">vpn_lock</span>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface text-base">IP Restrict List</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Limit access to corporate network IPs only.</p>
+</div>
+</div>
+<button class="shrink-0 py-xs px-sm border border-outline-variant text-on-surface rounded-lg font-label-caps text-label-caps hover:bg-surface-container-low transition-colors">
+                                    Configure
+                                </button>
+</div>
+<!-- Setting Item -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md">
+<div class="flex gap-md">
+<div class="mt-1 text-on-surface-variant">
+<span class="material-symbols-outlined">timer</span>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface text-base">Session Timeout</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Automatically log out inactive users.</p>
+</div>
+</div>
+<select class="shrink-0 bg-surface-container-low border border-outline-variant/30 text-on-surface text-sm rounded-lg focus:ring-secondary focus:border-secondary block p-2 outline-none font-mono-data">
+<option>15 Minutes</option>
+<option selected="">30 Minutes</option>
+<option>1 Hour</option>
+<option>4 Hours</option>
+</select>
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="w-full py-xl px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-md bg-surface-dim dark:bg-surface-dim border-t border-outline-variant mt-auto">
+<div class="font-label-caps text-label-caps font-black text-primary">FinIntel</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">© 2024 FinIntel Intelligence Platforms. All rights reserved.</p>
+<div class="flex gap-md font-body-sm text-body-sm">
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Terms of Service</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Security</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">API Documentation</a>
+</div>
+</footer>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex lg:hidden justify-around items-center px-4 py-2 bg-surface-container-lowest dark:bg-surface-container-lowest shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-xl font-label-caps text-label-caps">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant p-2 active:bg-surface-container-high transition-transform" href="#">
+<span class="material-symbols-outlined mb-1">home</span>
+            Home
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant p-2 active:bg-surface-container-high transition-transform" href="#">
+<span class="material-symbols-outlined mb-1">account_balance</span>
+            Ledger
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant p-2 active:bg-surface-container-high transition-transform" href="#">
+<span class="material-symbols-outlined mb-1">psychology</span>
+            AI
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant p-2 active:bg-surface-container-high transition-transform" href="#">
+<span class="material-symbols-outlined mb-1">assessment</span>
+            Reports
+        </a>
+<a class="flex flex-col items-center justify-center bg-primary-container dark:bg-primary-container text-on-primary-container dark:text-on-primary-container rounded-xl p-2 scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined mb-1">menu</span>
+            Menu
+        </a>
+</nav>
+<style>
+        /* Utility for hiding scrollbar in sub-nav on mobile */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+
+
+
+
+</body></html>
