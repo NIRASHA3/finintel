@@ -1,12 +1,12 @@
 # Initial Threat Model (STRIDE Framework)
 
 ## 1. Overview & System Assets
-FinIntel processes critical financial records, transaction histories, user credentials, and machine learning models. This document establishes the threat model using the STRIDE framework to identify security risks and mandatory mitigations.
+FinIntel processes critical financial records, transaction histories, user profile mappings, and machine learning models. This document establishes the threat model using the STRIDE framework to identify security risks and mandatory mitigations.
 
 ### Core Assets to Protect
 1. **General Ledger Data**: Posted journal entries, chart of accounts, financial reports (High Confidentiality, High Integrity).
 2. **Tenant Isolation Boundary**: Cross-tenant data separation (Critical Integrity & Confidentiality).
-3. **Authentication Secrets**: User password hashes, JWT signing keys, session tokens (Critical Confidentiality).
+3. **Identity Tokens**: OIDC ID tokens, access JWTs, service keys (Critical Confidentiality).
 4. **Audit Logs**: Immutable history of system and financial mutations (High Integrity & Non-Repudiation).
 
 ---
@@ -14,12 +14,11 @@ FinIntel processes critical financial records, transaction histories, user crede
 ## 2. STRIDE Threat Analysis & Mitigations
 
 ### 2.1 Spoofing (Identity Theft & Session Hijacking)
-- **Threat**: Attacker impersonates an organization user or system worker to gain unauthorized access.
+- **Threat**: Attacker impersonates an organization user or system worker using forged tokens or stolen credentials.
 - **Impact**: Unauthorized access to tenant financial data.
 - **Mitigation**:
-  - Enforce Argon2id / bcrypt password hashing with MFA TOTP support.
-  - Issue short-lived JWT access tokens (15 min) with HTTP-only, secure, SameSite refresh cookies.
-  - Sign JWTs using strong 256-bit secret keys (`JWT_SECRET_KEY`).
+  - Delegate authentication to an external OIDC Identity Provider (Auth0/Keycloak/Clerk). Passwords are never stored in PostgreSQL.
+  - Verify OIDC access tokens on every API request checking signature against IdP JWKS, issuer (`iss`), audience (`aud`), and token expiration (`exp`).
 
 ### 2.2 Tampering (Data Modification & Financial Corruption)
 - **Threat**: Attacker modifies financial journal entries, bypasses debit/credit balance rules, or tampers with accounting period locks.
@@ -27,13 +26,13 @@ FinIntel processes critical financial records, transaction histories, user crede
 - **Mitigation**:
   - Go API enforces database transaction isolation (`SERIALIZABLE`) and debit/credit equality checks ($\sum \text{Debits} = \sum \text{Credits}$).
   - Immutable database constraints: posted entries cannot be UPDATED or DELETED. Reversal entries are required.
-  - Application checks fiscal period lock status before executing inserts.
+  - Financial mutations and corresponding audit log insertions execute **atomically** in the same PostgreSQL transaction block (`BEGIN ... COMMIT`).
 
 ### 2.3 Repudiation (Denial of Action)
 - **Threat**: Malicious actor posts invalid financial entries or alters configuration and denies performing the action.
 - **Impact**: Inability to attribute financial fraud or unauthorized mutations.
 - **Mitigation**:
-  - Mandatory audit log generated for every mutation capturing `organization_id`, `actor_id`, `timestamp_utc`, `correlation_id`, and `changes` JSON delta.
+  - Mandatory audit log generated for every mutation capturing `organization_id`, `actor_id` (mapped to OIDC subject identifier), `timestamp_utc`, `correlation_id`, and `changes` JSON delta.
   - Append-only audit table prevents record modification or deletion.
 
 ### 2.4 Information Disclosure (Data Leakage)
@@ -41,8 +40,9 @@ FinIntel processes critical financial records, transaction histories, user crede
 - **Impact**: Severe breach of tenant confidentiality and regulatory violation.
 - **Mitigation**:
   - Enforce `WHERE organization_id = $1` on 100% of database queries.
+  - Enforce composite tenant-safe foreign key constraints `(organization_id, id)` across all tenant-scoped database entities.
   - Go API middleware validates user membership in the target `organization_id` before controller execution.
-  - Redact passwords, tokens, full credit card numbers, and PII from application logs.
+  - Redact authorization tokens, financial payloads, and PII from application logs.
 
 ### 2.5 Denial of Service (Resource Exhaustion)
 - **Threat**: Malicious user submits massive CSV files or floods posting endpoints to exhaust API or database connections.
@@ -57,4 +57,4 @@ FinIntel processes critical financial records, transaction histories, user crede
 - **Impact**: Unauthorized financial postings.
 - **Mitigation**:
   - Enforce Role-Based Access Control (RBAC) in Go API backend controllers for every route.
-  - Frontend UI hiding of actions is supplemented by strict backend role assertion.
+  - Assert membership role from `organization_memberships` resolved via the validated OIDC subject claim (`sub`).

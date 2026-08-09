@@ -16,12 +16,13 @@ Traditional accounting tools suffer from:
 3. Opaque "black-box" AI tools that make unexplained changes to ledgers without human-in-the-loop oversight.
 4. Error-prone monetary calculations caused by floating-point representations.
 
-FinIntel solves these challenges by combining strict accounting invariants (double-entry equality, integer/fixed-decimal precision, immutability) with transparent, explainable AI automation.
+FinIntel solves these challenges by combining strict accounting invariants (double-entry equality, integer/fixed-decimal precision, immutability) with transparent, explainable AI automation and provider-neutral OIDC authentication.
 
 ## 4. Key Product Capabilities
-- **Multi-Tenant Organization Management**: Secure onboarding, workspace switching, and granular role-based permissions.
-- **Transaction Import & Automated Categorization**: High-speed CSV parsing, duplicate detection, and ML-assisted category recommendations with confidence scoring.
+- **Multi-Tenant Organization Management**: Secure onboarding, workspace switching, and granular role-based permissions scoped by composite tenant keys.
+- **Provider-Neutral OIDC Authentication**: Enterprise identity federation delegating password storage, MFA, and recovery to external IdPs.
+- **Transaction Import & Automated Categorization**: High-speed CSV parsing, duplicate detection, staged transaction pipeline, and ML-assisted category recommendations with confidence scoring.
 - **General Ledger Engine**: Customizable chart of accounts, balanced double-entry posting, immutable entries, reversals, and period closing.
 - **Financial Reporting**: Income Statement, Balance Sheet, Cash Flow, and custom trial balances.
-- **AI Anomaly Detection & Forecasting**: Machine-learning driven flag generation for unusual spend, revenue anomalies, and predictive cash flow projections.
-- **Immutable Audit Trail**: Every user and system mutation recorded with correlation tracking and actor attribution.
+- **Advisory Financial Intelligence**: Machine-learning driven flag generation for unusual spend, revenue anomalies, and predictive cash flow projections. All AI suggestions are strictly advisory and require human approval before posting.
+- **Atomic Audit Trail**: Every user and system mutation recorded atomically in PostgreSQL with correlation tracking and actor attribution.

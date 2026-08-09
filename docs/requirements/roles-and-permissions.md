@@ -50,5 +50,5 @@
 
 ## 3. Enforcement Invariants
 1. Permissions MUST be evaluated on the backend in `services/api` for every API endpoint.
-2. The user's role MUST be scoped to the specific `organization_id` supplied in the request context.
+2. The user's role MUST be resolved by mapping the validated OIDC token subject claim (`sub`) against `users.external_subject_id` and querying `organization_memberships` for the requested `organization_id`.
 3. System Workers must authenticate via secure internal service tokens with correlation ID propagation.
