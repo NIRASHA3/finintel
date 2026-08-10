@@ -5,7 +5,6 @@ info:
   version: 1.0.0
   license:
     name: Proprietary
-    identifier: Apache-2.0
 servers:
   - url: http://localhost:8080
     description: Local Development Server
