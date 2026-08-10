@@ -1,7 +1,7 @@
 # System Architecture Specification
 
 ## 1. Executive Summary
-FinIntel is designed as a multi-tenant, modular monolith financial operations platform. It combines a Next.js web application frontend, a Go core REST API engine (`services/api`), a Go background worker (`services/worker`), and a Python advisory intelligence service (`services/intelligence`) backed by PostgreSQL.
+FinIntel is designed as a multi-tenant, modular monolith financial operations platform. It combines a Next.js web application frontend (`apps/web`), a Go core REST API engine (`services/api`), a Go background worker (`services/worker`), and a Python advisory intelligence service (`services/intelligence`) backed by PostgreSQL and an external OIDC Identity Provider.
 
 ---
 
@@ -9,29 +9,31 @@ FinIntel is designed as a multi-tenant, modular monolith financial operations pl
 
 ```mermaid
 graph TD
-    Client["User Browser (Web Client)"] -->|HTTPS / REST API| WebApp["Next.js App Router (apps/web)"]
+    Client["User Browser (Web Client)"] -->|OIDC Authentication| IdP["OIDC Identity Provider (Auth0/Keycloak/Clerk)"]
+    Client -->|HTTPS + Bearer JWT| WebApp["Next.js App Router (apps/web)"]
     WebApp -->|HTTP / JSON API| GoAPI["Go Core API (services/api)"]
-    
+
     subgraph Core Monolith Backend
-        GoAPI -->|Auth & Business Rules| Router["chi Router / Middleware"]
-        Router -->|RBAC & Tenant Check| Services["Accounting & Domain Services"]
-        Services -->|SQL Queries (sqlc/pgx)| Postgres[("PostgreSQL Database")]
-        Services -->|Async Tasks| Worker["Go Background Worker (services/worker)"]
+        GoAPI -->|JWKS Validation| IdP
+        GoAPI -->|Auth Middleware| Router["chi Router / Middleware"]
+        Router -->|RBAC & Tenant Scoping| Services["Accounting & Domain Services"]
+        Services -->|Atomic SQL Transactions| Postgres[("PostgreSQL Database")]
+        Services -->|Async Processing| Worker["Go Background Worker (services/worker)"]
     end
-    
+
     subgraph Intelligence Subsystem
-        Services -->|Internal HTTP (Read-Only)| PyIntel["Python Intelligence (services/intelligence)"]
-        PyIntel -->|Predictions & Anomalies| Services
+        Services -->|Internal Read-Only API| PyIntel["Python Intelligence (services/intelligence)"]
+        PyIntel -->|Suggestions & Anomalies| Services
     end
 
     classDef client fill:#f9f,stroke:#333,stroke-width:2px;
     classDef core fill:#bbf,stroke:#333,stroke-width:2px;
     classDef db fill:#dfd,stroke:#333,stroke-width:2px;
     classDef intel fill:#ffd,stroke:#333,stroke-width:2px;
-    
+
     class Client client;
     class GoAPI,Router,Services,Worker core;
-    class Postgres db;
+    class Postgres,IdP db;
     class PyIntel intel;
 ```
 
@@ -39,59 +41,64 @@ graph TD
 
 ## 3. Component Responsibilities
 
-### 3.1 Next.js Web Client (`apps/web`)
+### 3.1 OIDC Identity Provider (IdP)
+- Manages user credential storage (passwords), multi-factor authentication (MFA), account recovery, and social/enterprise SSO.
+- Issues OIDC ID tokens and JWT access tokens containing standard claims (`iss`, `aud`, `sub`, `email`).
+
+### 3.2 Next.js Web Client (`apps/web`)
 - User interface built with React, TypeScript, and Tailwind CSS.
-- Client-side navigation, form rendering, interactive financial dashboards, and visual review workflows.
-- Authenticates against Go API and attaches Bearer JWTs to API calls.
+- Initiates OIDC login flow with the IdP and attaches Bearer JWT access tokens to Go API requests.
 
-### 3.2 Go Core API (`services/api`)
-- Built with `chi` HTTP router, `pgx` driver, and `sqlc` type-safe database queries.
+### 3.3 Go Core API (`services/api`)
+- Resource server built with Go `chi` router, `pgx` driver, and `sqlc` database queries.
+- Validates OIDC JWT signatures via public JWKS endpoints, verifying issuer (`iss`) and audience (`aud`).
+- Maps OIDC subject claims (`sub`) to local application user profiles and tenant organization memberships.
 - Owns all business, accounting, validation, and authorization logic.
-- Enforces strict tenant isolation on every request (`WHERE organization_id = $1`).
-- Enforces accounting invariants: fixed-precision decimal arithmetic, double-entry equality ($\sum \text{Debits} = \sum \text{Credits}$), entry immutability, and period locks.
+- Enforces strict tenant isolation (`WHERE organization_id = $1`) and accounting invariants: fixed-precision arithmetic, double-entry balance equality ($\sum \text{Debits} = \sum \text{Credits}$), immutability, period locks, and atomic audit logging within single database transactions.
 
-### 3.3 Go Worker Service (`services/worker`)
-- Executes asynchronous, CPU-heavy, or long-running tasks (e.g. batch CSV transaction parsing, financial PDF export rendering, scheduled audit summaries).
-- Communicates with PostgreSQL directly under strict tenant scoping.
+### 3.4 Go Worker Service (`services/worker`)
+- Executes asynchronous background tasks (e.g. batch CSV transaction parsing, financial PDF export rendering) under strict tenant scoping.
 
-### 3.4 Python Intelligence Service (`services/intelligence`)
+### 3.5 Python Intelligence Service (`services/intelligence`)
 - Built with FastAPI, pandas, scikit-learn, and statsmodels.
 - Provides transaction category recommendations, confidence scores, anomaly detection flags, and cash flow projections.
-- Purely advisory: CANNOT mutate database state or post journal entries directly.
+- Purely advisory: CANNOT mutate database state or post journal entries directly. All AI recommendations require explicit human approval by an authorized user (`Accountant` or higher).
 
-### 3.5 PostgreSQL Database
-- Single persistent source of truth for multi-tenant data, user credentials, chart of accounts, immutable posted journal entries, and audit logs.
+### 3.6 PostgreSQL Database
+- Single persistent source of truth for multi-tenant data, user profiles, chart of accounts, staged transactions, immutable posted journal entries, and audit logs.
+- Stores user profiles mapped to OIDC external subject identifiers (`external_subject_id`). Passwords are NOT stored in PostgreSQL.
 
 ---
 
-## 4. Sequence Diagram: Journal Entry Posting Workflow
+## 4. Sequence Diagram: Atomic Journal Entry Posting Workflow
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as Accountant / Admin
     participant Web as Web Client (Next.js)
+    participant IdP as OIDC IdP
     participant API as Go Core API
     participant DB as PostgreSQL
-    participant Audit as Audit Logger
 
-    User->>Web: Submit Journal Entry Payload
-    Web->>API: POST /api/v1/journal-entries (Bearer Token, Idempotency-Key)
-    API->>API: 1. Validate JWT & Tenant Membership
-    API->>API: 2. Check Role Permission (Accountant+)
-    API->>API: 3. Verify Idempotency Key
-    API->>API: 4. Assert Debits == Credits (Fixed-Decimal)
-    API->>DB: 5. Query Fiscal Period Status for Transaction Date
+    User->>Web: Submit Journal Entry Form
+    Web->>API: POST /api/v1/journal-entries (Bearer JWT, Idempotency-Key)
+    API->>IdP: Validate JWT via JWKS (iss, aud, sig)
+    IdP-->>API: Token Valid (sub, email)
+    API->>API: 1. Verify User Membership & Role (Accountant+)
+    API->>API: 2. Check Idempotency Key
+    API->>API: 3. Assert Debits == Credits (Fixed-Decimal)
+    API->>DB: 4. Query Fiscal Period Status for Transaction Date
     alt Fiscal Period is CLOSED / LOCKED
         DB-->>API: Status = CLOSED
         API-->>Web: 422 Unprocessable Entity (PERIOD_LOCKED)
         Web-->>User: Display Period Locked Error
     else Fiscal Period is OPEN
-        API->>DB: 6. Begin DB Transaction (SERIALIZABLE)
-        API->>DB: 7. Insert Entry & Line Items (Status = POSTED)
-        API->>Audit: 8. Record Audit Log (Org, Actor, Timestamp, CorrelationID)
-        API->>DB: 9. Commit Transaction
-        DB-->>API: Success Response
+        API->>DB: 5. BEGIN DB TRANSACTION (SERIALIZABLE)
+        API->>DB: 6. Insert Journal Entry & Line Items (Status = POSTED)
+        API->>DB: 7. Insert Audit Log Event (Same Transaction)
+        API->>DB: 8. COMMIT TRANSACTION
+        DB-->>API: Transaction Committed Successfully
         API-->>Web: 201 Created (Journal Entry JSON)
         Web-->>User: Show Confirmation & Updated Ledger
     end
@@ -101,5 +108,5 @@ sequenceDiagram
 
 ## 5. Security & Isolation Architecture
 - All API routes are protected by tenant validation middleware:
-  $$\text{Request Context} \longrightarrow \text{Validate JWT} \longrightarrow \text{Verify User Membership in } \text{organization\_id} \longrightarrow \text{Inject Org Context}$$
-- DB Connection Pooling uses `pgxpool` with strict statement timeouts and parameter binding to prevent SQL injection.
+  $$\text{Bearer JWT} \longrightarrow \text{JWKS Verification} \longrightarrow \text{Map } \texttt{sub} \text{ to User} \longrightarrow \text{Assert Org Membership} \longrightarrow \text{Inject Org Context}$$
+- DB Connection Pooling uses `pgxpool` with composite tenant foreign keys `(organization_id, id)` to prevent cross-tenant entity referencing at the schema level.

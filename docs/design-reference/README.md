@@ -1,27 +1,53 @@
 # Design Reference & Tokens Guide
 
 ## Purpose
-This directory serves as the central repository for UI/UX visual references, design tokens, wireframe assets, and Stitch-generated interface mocks for the FinIntel web application.
+This directory serves as the central repository for UI/UX visual references, design tokens, wireframe assets, and design system guidelines for the FinIntel web application.
+
+> [!NOTE]
+> **DEMO DATA NOTICE**: All screenshot references in `screenshots/` contain mock/demo data for visual layout guidance only. No screenshots or mock files represent live production data, customer claims, SOC 2 compliance certifications, or real accuracy figures.
 
 ---
 
-## Contents Overview
+## Directory Structure
 
-### 1. Stitch Mocks & Screenshots (`docs/design-reference/mocks/`)
-- Contains reference screenshots and HTML mocks generated during design exploration using tools like Google Stitch or Figma exports.
-- Contains screen inventory diagrams covering key application views (Dashboard, Review Queue, General Ledger, Chart of Accounts, Reports, Audit Trail, Settings).
+```
+docs/design-reference/
+├── README.md             # Index and architectural guidelines
+├── design-system.md      # Design tokens, color palette, typography scale, spacing
+├── screen-inventory.md   # Detailed inventory of desktop and mobile screen mocks
+└── screenshots/          # Flat PNG screenshot references (Mock / Demo layout data)
+    ├── ai_intelligence_center.png
+    ├── ai_intelligence_mobile.png
+    ├── analytics.png
+    ├── dashboard.png
+    ├── dashboard_mobile.png
+    ├── financial_reports.png
+    ├── financial_reports_mobile.png
+    ├── general_ledger.png
+    ├── landing_page.png
+    ├── onboarding_setup.png
+    ├── scenario_planning.png
+    ├── settings.png
+    ├── sign_in.png
+    ├── transactions.png
+    └── transactions_mobile.png
+```
 
-### 2. Design Tokens (`docs/design-reference/tokens.json`)
-- Defines design primitives including color palettes (financial slate, emerald accent, alert red), typography scales (Inter/Roboto), spacing units, border radii, and dark/light theme properties.
+---
 
-### 3. Responsive Design References
-- Layout guidelines for Desktop (>= 1280px), Tablet (768px - 1027px), and Mobile (< 768px) views.
+## Contents Summary
+
+### 1. Design System Specification ([design-system.md](./design-system.md))
+- Defines color tokens (surface, primary navy `#001524`, secondary teal `#15616D`, alert red `#BA1A1A`).
+- Defines typography scale using **Inter** for UI text and **JetBrains Mono** / tabular figures (`tnum`) for all monetary values.
+- Defines elevation, depth, 12-column fluid grid standards, and 12px container corner radii.
+
+### 2. Screen Inventory ([screen-inventory.md](./screen-inventory.md))
+- Maps visual screenshots to specific functional application views for desktop and mobile viewports.
 
 ---
 
 ## Critical Engineering Constraint
 
 > [!CAUTION]
-> **PROHIBITION ON DIRECT CODE COPYING**: Generated Stitch HTML, inline CSS, or raw prototype markup MUST NOT be copied directly into production React components in `apps/web`.
->
-> All production frontend UI components MUST be built cleanly using Next.js React components, TypeScript interfaces, and Tailwind CSS design tokens following component modularity and accessibility standards (WCAG 2.1 AA).
+> **PROHIBITION ON DIRECT CODE COPYING**: All generated HTML prototype files have been permanently removed. Production React components in `apps/web` MUST be built cleanly using Next.js, TypeScript interfaces, and Tailwind CSS following component modularity and WCAG 2.2 AA accessibility standards.

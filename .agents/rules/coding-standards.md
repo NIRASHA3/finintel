@@ -6,7 +6,7 @@
 - **No Unused Code**: Avoid dead code, commented-out logic, or unused imports.
 
 ## 2. Go Standards (`services/api`, `services/worker`)
-- Follow standard Go formatting (`gofmt`, `go vet`).
+- Follow standard Go formatting (`gofmt`, `go vet`). Enforce static type safety.
 - **Error Handling**: Always handle `error` return values. Wrap errors using `fmt.Errorf("context: %w", err)`.
 - **Concurrency**: Protect shared resources with appropriate mutexes or channel communication. Avoid naked goroutines; use worker pools and context cancellation.
 - **Database Access**: Use `sqlc` generated queries and `pgx` type safety. Never concatenate raw SQL strings.
@@ -15,7 +15,8 @@
 - Enforce strict TypeScript typing (`strict: true`). Avoid `any`; use precise domain interfaces or `unknown`.
 - Use React Functional Components with hooks.
 - State management must remain localized to components or custom hooks unless global session state is required.
-- Tailwind CSS styling must use consistent design tokens and layout classes. Avoid arbitrary hardcoded pixel inline styles.
+- Tailwind CSS styling must use consistent design tokens and layout classes. Avoid arbitrary hardcoded inline styles.
+- Components must adhere to WCAG 2.2 Level AA accessibility standards.
 
 ## 4. Python Standards (`services/intelligence`)
 - Enforce PEP 8 formatting and type hints (MyPy standard).

@@ -5,11 +5,12 @@
 FinIntel is a production-oriented, multi-tenant financial operations SaaS application designed for modern organizations. It streamlines core financial workflows by combining strict double-entry accounting invariants with AI-assisted transaction categorization, anomaly detection, and explainable forecasting.
 
 ### Core Capabilities
-- **Multi-Tenant Operations**: Strict data segregation per organization (`organization_id`).
-- **Financial Transaction Management**: CSV import, duplicate detection, and automated categorization review.
+- **Multi-Tenant Operations**: Strict data segregation per organization using composite tenant-safe keys (`organization_id`).
+- **OIDC Identity Federation**: Provider-neutral OpenID Connect (OIDC) authentication delegating passwords, MFA, and recovery to external IdPs.
+- **Financial Transaction Management**: CSV import, duplicate detection, staged transaction pipeline, and human-in-the-loop review.
 - **Double-Entry General Ledger**: Chart of accounts, immutable posted journal entries, balanced debit/credit posting, and fiscal period locking.
-- **Financial Intelligence**: AI-driven anomaly detection and forecasting with human-in-the-loop explainability.
-- **Audit & Compliance**: Complete audit trails for every mutation recording organization, actor, timestamp, and correlation ID.
+- **Financial Intelligence**: Advisory AI-driven anomaly detection and forecasting with mandatory human approval.
+- **Atomic Audit & Compliance**: Atomic audit trails for every mutation recorded in the same database transaction with correlation ID tracking.
 
 ---
 
@@ -17,7 +18,7 @@ FinIntel is a production-oriented, multi-tenant financial operations SaaS applic
 
 * **Current Phase**: **Milestone 0 - Project Foundation**
 * **Git Branch**: `feature/project-foundation`
-* **Status**: Architectural definitions, engineering invariants, security baseline, and repository structure established. Application code and deployments are intentionally deferred until Milestone 1.
+* **Status**: Architectural definitions, engineering invariants, provider-neutral OIDC alignment, security baseline, and repository structure established. Application code, dependencies, and deployments are intentionally deferred until subsequent milestones.
 
 ---
 
@@ -26,29 +27,23 @@ FinIntel is a production-oriented, multi-tenant financial operations SaaS applic
 FinIntel is designed as a **Modular Monolith** to maximize engineering velocity while preserving strict domain boundaries.
 
 ```
-                     ┌───────────────────────────────────┐
-                     │          Web App (Next.js)         │
-                     └─────────────────┬─────────────────┘
-                                       │ HTTPS / REST API
-                                       ▼
-                     ┌───────────────────────────────────┐
-                     │        Go API (chi / pgx)         │
-                     │  (Single Source of Truth & Auth)  │
-                     └───────┬───────────────────┬───────┘
-                             │                   │
-            SQL Queries (pgx)│                   │ Internal HTTP
-                             ▼                   ▼
-           ┌───────────────────┐       ┌───────────────────┐
-           │    PostgreSQL     │       │Python Intelligence│
-           │  (Primary Data)   │       │(Advisory / AI)    │
-           └───────────────────┘       └───────────────────┘
+                  ┌──────────────────────────────────────────────┐
+                  │    User Browser (Next.js App Router Client)   │
+                  └───────┬──────────────────────────────┬───────┘
+                          │ OIDC Login                   │ HTTPS / REST API
+                          ▼                              ▼
+             ┌─────────────────────────┐   ┌───────────────────────────┐
+             │ OIDC Identity Provider  │   │     Go Core API           │
+             │ (Auth0 / Keycloak / etc)│   │ (Single Source of Truth)  │
+             └─────────────────────────┘   └─────────────┬─────────────┘
+                                                         │
+                                        Atomic SQL (pgx) │ Internal HTTP
+                                                         ▼
+                                       ┌────────────────────────────────┐
+                                       │ PostgreSQL Database            │
+                                       │ (Shared-Schema Multi-Tenant)   │
+                                       └────────────────────────────────┘
 ```
-
-### Architectural Principles
-1. **PostgreSQL as Single Source of Truth**: Persistent store for all tenants, domain models, ledger entries, and audit logs.
-2. **Go API Engine**: Owns all business, accounting, validation, and authorization rules.
-3. **Advisory Python Service**: Produces ML predictions, anomaly detection scores, and forecasts. The Python service **cannot** post financial entries directly.
-4. **Strict Isolation**: Tenant scoping enforced on every query and endpoint.
 
 ---
 
@@ -74,9 +69,9 @@ finintel/
 ├── docs/                 # Product requirements, architecture, ADRs, threat model
 │   ├── requirements/     # Product, functional, and NFR specifications
 │   ├── architecture/     # System architecture & data model
-│   ├── adr/              # Architecture Decision Records
+│   ├── adr/              # Architecture Decision Records (ADRs 0001 - 0004)
 │   ├── threat-model/     # STRIDE threat model & mitigations
-│   └── design-reference/ # UI design tokens and screen references
+│   └── design-reference/ # UI design tokens, screen inventory, and screenshots
 ├── infrastructure/
 │   ├── docker/           # Docker setup (deferred)
 │   └── terraform/        # Infrastructure as Code (deferred)
@@ -84,6 +79,8 @@ finintel/
 │   └── e2e/              # Playwright end-to-end tests
 ├── .env.example          # Environment variable template
 ├── .gitignore            # Git exclusion rules
+├── .gitattributes        # Git line ending normalization
+├── .editorconfig         # Code formatting configuration
 └── README.md             # Project documentation index
 ```
 
@@ -91,28 +88,23 @@ finintel/
 
 ## Implementation Roadmap
 
-| Milestone | Phase | Description | Status |
+| Milestone | Scope | Description | Status |
 |---|---|---|---|
-| **Milestone 0** | Project Foundation | Monorepo layout, agent rules, NFRs, domain invariants, ADRs | **Complete** |
-| **Milestone 1** | Core Domain & Auth | Go API foundation, DB schema, tenant isolation, Auth & Users | Planned |
-| **Milestone 2** | General Ledger | Chart of accounts, double-entry postings, period locking, reversals | Planned |
-| **Milestone 3** | Import & Categorization | CSV import parser, duplicate detection, transaction review | Planned |
-| **Milestone 4** | Intelligence & Anomaly | Python FastAPI analytics service, anomaly scoring, explainable forecasts | Planned |
-| **Milestone 5** | Web Application | Next.js App Router UI, dashboard, ledger management, reports | Planned |
-| **Milestone 6** | E2E Testing & Hardening | Playwright tests, performance tuning, threat mitigations | Planned |
+| **Milestone 0** | Project Foundation | Monorepo layout, agent rules, NFRs, domain invariants, ADRs, OIDC alignment | **Complete** |
+| **Milestone 1** | Engineering Foundation | Monorepo toolchain, code linting, Go/TS/Python base setups, contract definitions | Planned |
+| **Milestone 2** | Identity and Tenancy | OIDC JWT validation, organization provisioning, RBAC, tenant context middleware | Planned |
+| **Milestone 3** | Onboarding | Organization wizard, COA template initialization, member invitation flow | Planned |
+| **Milestone 4** | CSV Transaction Import and Review | File parser, staged transaction pipeline, duplicate detection, review queue | Planned |
+| **Milestone 5** | Accounting | Double-entry posting engine, fiscal period locks, entry immutability, atomic audit logs | Planned |
+| **Milestone 6** | Reports and Dashboard | Income Statement, Balance Sheet, Trial Balance, executive dashboard | Planned |
+| **Milestone 7** | Intelligence | Python FastAPI advisory service, anomaly detection, cash flow forecasting, evaluation | Planned |
+| **Milestone 8** | Production Hardening and Deployment | End-to-end Playwright tests, security hardening, production staging deployment | Planned |
 
 ---
 
 ## Local Development Status
 
-Local runtime execution and scaffolding are deferred until **Milestone 1**.
-
-### Prerequisites (For Milestone 1+)
-* **Node.js**: v22.x+
-* **pnpm**: v9.x+
-* **Go**: v1.22+
-* **Python**: v3.11+
-* **PostgreSQL**: v16+
+Local runtime execution, package installations, and scaffolding are deferred until **Milestone 1**.
 
 ---
 
@@ -120,15 +112,15 @@ Local runtime execution and scaffolding are deferred until **Milestone 1**.
 
 ### Accounting Invariants
 - **No Floating-Point Money**: All financial monetary values must use fixed-precision decimal values (`NUMERIC(20,4)`) or integer minor units (e.g., cents).
-- **Balanced Entries**: Posted journal entries must satisfy `SUM(Debits) == SUM(Credits)`.
-- **Immutability**: Posted journal entries cannot be edited or deleted. Adjustments require explicit reversal entries.
+- **Balanced Postings**: Posted journal entries must satisfy $\sum \text{Debits} = \sum \text{Credits}$.
+- **Immutability & Reversals**: Posted journal entries cannot be edited or deleted. Adjustments require explicit reversal entries.
 - **Period Locking**: Posted transactions in closed fiscal periods are strictly rejected.
+- **Atomic Audit Trail**: Ledger mutations and audit log records execute atomically in the same database transaction.
 
 ### Security Invariants
-- **Backend Authorization**: The API backend must verify organization membership and permissions on every request.
-- **Tenant Isolation**: Every database query must filter by `organization_id`.
-- **Zero Credentials in Code**: No API keys, database passwords, or JWT secrets in source code.
-- **Data Protection**: Never log sensitive financial payload contents, tokens, or credentials.
+- **Provider-Neutral OIDC**: Identity, password storage, MFA, and account recovery are delegated to an external IdP. PostgreSQL stores application user profiles mapped via `external_subject_id`.
+- **Tenant Isolation**: Every database query filters by `organization_id`. Tenant-scoped entities enforce composite foreign keys `(organization_id, id)`.
+- **Human-in-the-Loop AI**: AI suggestions are strictly advisory and CANNOT post journal entries automatically.
 
 ---
 
@@ -153,5 +145,5 @@ We enforce Conventional Commits:
 #### Professional Commit Examples
 - `feat(ledger): implement double-entry journal posting verification`
 - `fix(auth): enforce organization membership validation on transaction review`
-- `docs(adr): record decision on modular monolith architecture`
+- `docs(adr): record decision on provider-neutral OIDC authentication`
 - `test(api): add unit tests for fiscal period lock enforcement`
