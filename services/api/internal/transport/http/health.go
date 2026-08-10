@@ -6,16 +6,12 @@ import (
 	"net/http"
 )
 
-type DBPinger interface {
+type PingerProvider interface {
 	Ping(ctx context.Context) error
 }
 
 type HealthHandler struct {
 	db PingerProvider
-}
-
-type PingerProvider interface {
-	Ping(ctx context.Context) error
 }
 
 type LiveResponse struct {
