@@ -12,7 +12,7 @@ graph TD
     Client["User Browser (Web Client)"] -->|OIDC Authentication| IdP["OIDC Identity Provider (Auth0/Keycloak/Clerk)"]
     Client -->|HTTPS + Bearer JWT| WebApp["Next.js App Router (apps/web)"]
     WebApp -->|HTTP / JSON API| GoAPI["Go Core API (services/api)"]
-    
+
     subgraph Core Monolith Backend
         GoAPI -->|JWKS Validation| IdP
         GoAPI -->|Auth Middleware| Router["chi Router / Middleware"]
@@ -20,7 +20,7 @@ graph TD
         Services -->|Atomic SQL Transactions| Postgres[("PostgreSQL Database")]
         Services -->|Async Processing| Worker["Go Background Worker (services/worker)"]
     end
-    
+
     subgraph Intelligence Subsystem
         Services -->|Internal Read-Only API| PyIntel["Python Intelligence (services/intelligence)"]
         PyIntel -->|Suggestions & Anomalies| Services
@@ -30,7 +30,7 @@ graph TD
     classDef core fill:#bbf,stroke:#333,stroke-width:2px;
     classDef db fill:#dfd,stroke:#333,stroke-width:2px;
     classDef intel fill:#ffd,stroke:#333,stroke-width:2px;
-    
+
     class Client client;
     class GoAPI,Router,Services,Worker core;
     class Postgres,IdP db;

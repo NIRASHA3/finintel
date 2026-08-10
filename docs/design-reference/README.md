@@ -37,12 +37,12 @@ docs/design-reference/
 
 ## Contents Summary
 
-### 1. Design System Specification ([design-system.md](file:///d:/Finacial_Project/finintel/docs/design-reference/design-system.md))
+### 1. Design System Specification ([design-system.md](./design-system.md))
 - Defines color tokens (surface, primary navy `#001524`, secondary teal `#15616D`, alert red `#BA1A1A`).
 - Defines typography scale using **Inter** for UI text and **JetBrains Mono** / tabular figures (`tnum`) for all monetary values.
 - Defines elevation, depth, 12-column fluid grid standards, and 12px container corner radii.
 
-### 2. Screen Inventory ([screen-inventory.md](file:///d:/Finacial_Project/finintel/docs/design-reference/screen-inventory.md))
+### 2. Screen Inventory ([screen-inventory.md](./screen-inventory.md))
 - Maps visual screenshots to specific functional application views for desktop and mobile viewports.
 
 ---

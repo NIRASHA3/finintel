@@ -19,6 +19,7 @@ FinIntel processes critical financial records, transaction histories, user profi
 - **Mitigation**:
   - Delegate authentication to an external OIDC Identity Provider (Auth0/Keycloak/Clerk). Passwords are never stored in PostgreSQL.
   - Verify OIDC access tokens on every API request checking signature against IdP JWKS, issuer (`iss`), audience (`aud`), and token expiration (`exp`).
+  - Map user identity using composite uniqueness of issuer plus subject (`(identity_provider_issuer, external_subject_id)`).
 
 ### 2.2 Tampering (Data Modification & Financial Corruption)
 - **Threat**: Attacker modifies financial journal entries, bypasses debit/credit balance rules, or tampers with accounting period locks.
@@ -32,15 +33,17 @@ FinIntel processes critical financial records, transaction histories, user profi
 - **Threat**: Malicious actor posts invalid financial entries or alters configuration and denies performing the action.
 - **Impact**: Inability to attribute financial fraud or unauthorized mutations.
 - **Mitigation**:
-  - Mandatory audit log generated for every mutation capturing `organization_id`, `actor_id` (mapped to OIDC subject identifier), `timestamp_utc`, `correlation_id`, and `changes` JSON delta.
+  - Mandatory audit log generated for every mutation capturing `organization_id`, `actor_id` (mapped to OIDC issuer + subject), `actor_type` (`USER`, `SYSTEM_WORKER`, `SERVICE_ACTOR`), `timestamp_utc`, `correlation_id`, and `changes` JSON delta.
+  - For service actors and `System Worker` operations where `actor_id` does not reference a human user, `actor_type`, service actor identity, and correlation ID ensure complete traceability without weakening audit requirements.
   - Append-only audit table prevents record modification or deletion.
 
 ### 2.4 Information Disclosure (Data Leakage)
 - **Threat**: Tenant A accesses Tenant B's ledger data via parameter tampering or unauthenticated endpoints.
 - **Impact**: Severe breach of tenant confidentiality and regulatory violation.
 - **Mitigation**:
-  - Enforce `WHERE organization_id = $1` on 100% of database queries.
-  - Enforce composite tenant-safe foreign key constraints `(organization_id, id)` across all tenant-scoped database entities.
+  - Enforce `WHERE organization_id = $1` on 100% of backend database queries.
+  - Enforce PostgreSQL Row-Level Security (RLS) as defense-in-depth on all tenant tables, failing closed if organization context is missing. Production DB connection role must not be a superuser, table owner, or possess `BYPASSRLS`. Automated cross-tenant RLS integration tests are mandatory.
+  - Enforce composite tenant-safe foreign key constraints `(organization_id, id)` across all tenant-scoped database entities (including self-references and cross-entity references).
   - Go API middleware validates user membership in the target `organization_id` before controller execution.
   - Redact authorization tokens, financial payloads, and PII from application logs.
 
@@ -57,4 +60,4 @@ FinIntel processes critical financial records, transaction histories, user profi
 - **Impact**: Unauthorized financial postings.
 - **Mitigation**:
   - Enforce Role-Based Access Control (RBAC) in Go API backend controllers for every route.
-  - Assert membership role from `organization_memberships` resolved via the validated OIDC subject claim (`sub`).
+  - Assert membership role from `organization_memberships` resolved via the validated OIDC issuer (`iss`) and subject claim (`sub`).

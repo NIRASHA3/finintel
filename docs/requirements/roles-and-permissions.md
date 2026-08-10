@@ -25,6 +25,7 @@
 ### 1.6 System Worker
 - **Scope**: Machine background service actor (`services/worker`).
 - **Capabilities**: Execute async tasks, batch CSV parsing, background anomaly scanning, and generate PDF export artifacts under explicit organization context.
+- **Audit Requirement**: Operations executed by System Worker instances MUST emit `audit_logs` entries capturing `actor_type = 'SYSTEM_WORKER'`, background service identifier, correlation ID, and organization context, maintaining full audit traceability without referencing a human user ID.
 
 ---
 
@@ -50,5 +51,5 @@
 
 ## 3. Enforcement Invariants
 1. Permissions MUST be evaluated on the backend in `services/api` for every API endpoint.
-2. The user's role MUST be resolved by mapping the validated OIDC token subject claim (`sub`) against `users.external_subject_id` and querying `organization_memberships` for the requested `organization_id`.
-3. System Workers must authenticate via secure internal service tokens with correlation ID propagation.
+2. The user's role MUST be resolved by mapping the validated OIDC token issuer (`iss`) and subject claim (`sub`) against `users (identity_provider_issuer, external_subject_id)` and querying `organization_memberships` for the requested `organization_id`.
+3. System Workers must authenticate via secure internal service tokens with correlation ID propagation and emit immutable service actor audit records.

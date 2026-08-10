@@ -9,6 +9,7 @@
 - **NFR-1.1 Strict Logical Isolation**: Every database query must filter by `organization_id`. Tenant-scoped tables enforce composite foreign key constraints `(organization_id, referenced_entity_id)` to prevent cross-tenant referencing at the schema layer.
 - **NFR-1.2 Encryption Standards**: Data in transit must use TLS 1.2 or later. Data at rest must be encrypted using AES-256.
 - **NFR-1.3 Zero Trust Architecture**: API controllers must validate JWT signatures via OIDC JWKS, verify organization membership, and assert exact role permissions on every request.
+- **NFR-1.4 Defense-in-Depth Row-Level Security**: PostgreSQL Row-Level Security (RLS) MUST be configured on all tenant-scoped tables as defense-in-depth, supplementing mandatory backend application `organization_id` query filtering (`WHERE organization_id = $1`). Tenant RLS policies MUST fail closed by default if organization session context is missing or invalid. The production application database runtime role MUST NOT be a superuser, table owner, or possess `BYPASSRLS` privileges. Automated cross-tenant RLS integration tests are mandatory in the test suite.
 
 ## 2. Data Integrity & Financial Precision
 - **NFR-2.1 Exact Arithmetic**: Monetary values MUST be stored as integer minor units or fixed-precision `NUMERIC(20,4)`. IEEE 754 floating-point arithmetic is prohibited for currency.

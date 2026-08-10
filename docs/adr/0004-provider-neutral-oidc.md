@@ -23,11 +23,11 @@ Chosen Option: **Adopt Provider-Neutral OIDC Authentication**.
 2. **Go Core API (`services/api`)**:
    - Acts as a Resource Server.
    - Validates incoming Bearer JWT tokens against the IdP's `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, and JSON Web Key Set (`OIDC_JWKS_URL`).
-   - Extracts the immutable external subject identifier (`sub` claim) to resolve local tenant organization membership and user profiles.
+   - Extracts the immutable issuer (`iss`) and external subject identifier (`sub` claim) to resolve local tenant organization membership and user profiles.
 
 3. **PostgreSQL Database**:
    - Stores application user profiles, organization memberships, and role assignments.
-   - Maps users via `external_subject_id` (`VARCHAR(255)`).
+   - Maps users via composite identity uniqueness: `UNIQUE (identity_provider_issuer, external_subject_id)`.
    - **MUST NOT** store user passwords, password hashes, or recovery tokens.
 
 ### Positive Consequences

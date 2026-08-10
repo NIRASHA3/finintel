@@ -123,17 +123,17 @@ The palette is rooted in a "Deep Navy" primary to establish authority. "Vibrant 
 - **Accessibility:** Ensure all text-on-background combinations meet WCAG AA standards. Orange CTAs should use white text only if the contrast ratio permits; otherwise, use the Deep Navy for text on light accents.
 
 ## Typography
-This design system utilizes **Inter** for all UI elements to maintain a clean, neo-grotesque feel. 
+This design system utilizes **Inter** for all UI elements to maintain a clean, neo-grotesque feel.
 
 - **Financial Figures:** All currency, percentages, and data points in tables must use **JetBrains Mono** or Inter with `tnum` (tabular figures) enabled to ensure vertical alignment of digits.
 - **Hierarchy:** Use tight letter-spacing on larger headings to create a premium, "tucked" look.
 - **Scale:** Maintain a clear distinction between body-md (default reading) and body-sm (meta-data and captions).
 
 ## Layout & Spacing
-The system employs a **12-column fluid grid** for desktop and a **4-column grid** for mobile. 
+The system employs a **12-column fluid grid** for desktop and a **4-column grid** for mobile.
 
-- **Rhythm:** All spacing must be multiples of 4px. 
-- **Containers:** Max-width for dashboard content is 1440px. 
+- **Rhythm:** All spacing must be multiples of 4px.
+- **Containers:** Max-width for dashboard content is 1440px.
 - **Density:** Use 16px (md) padding for standard cards and 12px (sm) for high-density data views. Large marketing or "Hero" sections should utilize 48px (2xl) vertical rhythm.
 
 ## Elevation & Depth
