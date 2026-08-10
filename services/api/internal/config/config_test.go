@@ -2,7 +2,6 @@ package config_test
 
 import (
 	"log/slog"
-	"os"
 	"testing"
 
 	"github.com/NIRASHA3/finintel/services/api/internal/config"
@@ -11,10 +10,12 @@ import (
 )
 
 func TestLoadDefaults(t *testing.T) {
-	os.Unsetenv("APP_ENV")
-	os.Unsetenv("API_PORT")
-	os.Unsetenv("LOG_LEVEL")
-	os.Unsetenv("DATABASE_URL")
+	t.Setenv("APP_ENV", "")
+	t.Setenv("API_PORT", "")
+	t.Setenv("API_HOST", "")
+	t.Setenv("LOG_LEVEL", "")
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_MAX_CONNS", "")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)
