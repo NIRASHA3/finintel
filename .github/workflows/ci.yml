@@ -1,0 +1,109 @@
+name: FinIntel Continuous Integration
+
+on:
+  push:
+    branches: [ main, feature/* ]
+  pull_request:
+    branches: [ main, feature/* ]
+
+jobs:
+  web-ci:
+    name: Web Frontend CI (apps/web)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Web Lint
+        run: pnpm --filter web lint
+
+      - name: Web Type-Check
+        run: pnpm --filter web type-check
+
+      - name: Web Vitest Component Tests
+        run: pnpm --filter web test
+
+      - name: Web Production Build
+        run: pnpm --filter web build
+
+  go-api-ci:
+    name: Core Go API CI (services/api)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: services/api/go.sum
+
+      - name: Go Formatting Check
+        run: |
+          UNFORMATTED=$(gofmt -s -l services/api/)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "Error: The following Go files are not formatted:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Go Vet
+        working-directory: services/api
+        run: go vet ./...
+
+      - name: Go Unit Tests
+        working-directory: services/api
+        run: go test -v ./...
+
+  openapi-validation:
+    name: OpenAPI 3.1 Contract Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate OpenAPI Contract
+        run: pnpm lint:openapi

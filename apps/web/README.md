@@ -1,13 +1,37 @@
-# Web Application (`apps/web`)
+# Web Application Client (`apps/web`)
 
 ## Overview
-The `apps/web` package will contain the Next.js App Router front-end user interface for FinIntel, built using React, TypeScript, and Tailwind CSS.
+`apps/web` contains the Next.js App Router front-end user interface for FinIntel, built using React 19, TypeScript (`strict: true`), and Tailwind CSS.
 
 ## Status
-* **Milestone 0**: Blueprint directory established. Application scaffolding and code implementation are intentionally deferred to **Milestone 5**.
+* **Milestone 1**: Engineering Foundation established. Application shell, design system tokens, accessible layout landmarks, Vitest unit testing, and pnpm monorepo workspace scripts configured. Domain screens (dashboards, transactions, journal forms) remain deferred to subsequent vertical slice milestones.
 
-## Planned Scope & Features
-- Next.js App Router with Server & Client components.
-- Interactive Dashboard, Financial Statement renderers, Journal Entry posting forms, and CSV review queue.
-- WCAG 2.1 AA accessible forms, tables, and modal dialogs.
-- Authentication integration with `services/api` via secure HTTP-only cookie and JWT headers.
+## Design Tokens & Styling
+Design tokens are implemented in `app/globals.css` and `tailwind.config.ts` adhering to `docs/design-reference/design-system.md`:
+* **Colors**: Navy (`#001524`), Teal (`#15616D`), Alert Red (`#BA1A1A`), Surface Light (`#F8F9FA`), Surface Dark (`#0B131F`).
+* **Typography**: Inter for UI text, JetBrains Mono / tabular figures (`tnum`) for monetary values.
+* **Layout**: 4px grid rhythm, 1440px container max-width, 12px rounded corner radii.
+
+## Development Commands
+All commands run from root or package workspace:
+
+```bash
+# Run web development server (from root)
+pnpm dev:web
+
+# Run linting
+pnpm --filter web lint
+
+# Run TypeScript type check
+pnpm --filter web type-check
+
+# Run Vitest unit tests
+pnpm --filter web test
+
+# Execute production build
+pnpm --filter web build
+```
+
+## Accessibility (a11y)
+* Complies with WCAG 2.2 Level AA accessibility standards.
+* Includes landmark HTML elements (`<header>`, `<main>`, `<footer>`, `<nav>`), skip-to-main-content navigation link, and ARIA status attributes.
