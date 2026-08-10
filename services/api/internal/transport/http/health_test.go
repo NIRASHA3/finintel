@@ -74,3 +74,20 @@ func TestHealthReadyFailure(t *testing.T) {
 	// Assert no sensitive connection strings or internal errors are exposed in response
 	assert.NotContains(t, rec.Body.String(), "connection refused")
 }
+
+func TestHealthReadyUnconfigured(t *testing.T) {
+	handler := transportHTTP.NewHealthHandler(nil)
+	req := httptest.NewRequest(http.MethodGet, "/health/ready", nil)
+	rec := httptest.NewRecorder()
+
+	handler.Ready(rec, req)
+
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+	var resp transportHTTP.ReadyResponse
+	err := json.Unmarshal(rec.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, "DOWN", resp.Status)
+	assert.Equal(t, "UNCONFIGURED", resp.Checks["database"])
+}
