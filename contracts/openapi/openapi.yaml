@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info:
+  title: FinIntel Core REST API
+  description: Canonical REST API contract between Next.js Web frontend client and Go Core API.
+  version: 1.0.0
+  license:
+    name: Proprietary
+servers:
+  - url: http://localhost:8080
+    description: Local Development Server
+security: []
+paths:
+  /health/live:
+    get:
+      summary: Process Liveness Check
+      description: Returns process liveness status for container orchestrators.
+      operationId: getHealthLive
+      security: []
+      responses:
+        '200':
+          description: Process is live.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthLiveResponse'
+  /health/ready:
+    get:
+      summary: Dependency Readiness Check
+      description: Returns readiness status of application dependencies including PostgreSQL.
+      operationId: getHealthReady
+      security: []
+      responses:
+        '200':
+          description: All required system dependencies are operational.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+        '503':
+          description: One or more required system dependencies are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+components:
+  schemas:
+    HealthLiveResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - UP
+            - DOWN
+          example: UP
+    HealthReadyResponse:
+      type: object
+      required:
+        - status
+        - checks
+      properties:
+        status:
+          type: string
+          enum:
+            - UP
+            - DOWN
+          example: UP
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            database: UP

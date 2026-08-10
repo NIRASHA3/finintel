@@ -1,149 +1,66 @@
-# FinIntel - Multi-Tenant Financial Operations SaaS
+# FinIntel — Autonomous Multi-Tenant Financial Intelligence Platform
 
-## Product Overview
+FinIntel is an AI-assisted financial ledger, multi-source ingestion engine, and automated accounting platform for modern enterprises.
 
-FinIntel is a production-oriented, multi-tenant financial operations SaaS application designed for modern organizations. It streamlines core financial workflows by combining strict double-entry accounting invariants with AI-assisted transaction categorization, anomaly detection, and explainable forecasting.
+## Monorepo Workspace Architecture
 
-### Core Capabilities
-- **Multi-Tenant Operations**: Strict data segregation per organization using composite tenant-safe keys (`organization_id`).
-- **OIDC Identity Federation**: Provider-neutral OpenID Connect (OIDC) authentication delegating passwords, MFA, and recovery to external IdPs.
-- **Financial Transaction Management**: CSV import, duplicate detection, staged transaction pipeline, and human-in-the-loop review.
-- **Double-Entry General Ledger**: Chart of accounts, immutable posted journal entries, balanced debit/credit posting, and fiscal period locking.
-- **Financial Intelligence**: Advisory AI-driven anomaly detection and forecasting with mandatory human approval.
-- **Atomic Audit & Compliance**: Atomic audit trails for every mutation recorded in the same database transaction with correlation ID tracking.
-
----
-
-## Current Project Status
-
-* **Current Phase**: **Milestone 0 - Project Foundation**
-* **Git Branch**: `feature/project-foundation`
-* **Status**: Architectural definitions, engineering invariants, provider-neutral OIDC alignment, security baseline, and repository structure established. Application code, dependencies, and deployments are intentionally deferred until subsequent milestones.
-
----
-
-## Planned Architecture
-
-FinIntel is designed as a **Modular Monolith** to maximize engineering velocity while preserving strict domain boundaries.
-
-```
-                  ┌──────────────────────────────────────────────┐
-                  │    User Browser (Next.js App Router Client)   │
-                  └───────┬──────────────────────────────┬───────┘
-                          │ OIDC Login                   │ HTTPS / REST API
-                          ▼                              ▼
-             ┌─────────────────────────┐   ┌───────────────────────────┐
-             │ OIDC Identity Provider  │   │     Go Core API           │
-             │ (Auth0 / Keycloak / etc)│   │ (Single Source of Truth)  │
-             └─────────────────────────┘   └─────────────┬─────────────┘
-                                                         │
-                                        Atomic SQL (pgx) │ Internal HTTP
-                                                         ▼
-                                       ┌────────────────────────────────┐
-                                       │ PostgreSQL Database            │
-                                       │ (Shared-Schema Multi-Tenant)   │
-                                       └────────────────────────────────┘
-```
-
----
-
-## Repository Structure
-
-```
+```text
 finintel/
-├── .agents/              # AI Agent rules & workflow guidance
-│   ├── rules/            # Architectural, coding, security, and domain rules
-│   └── workflows/        # Plan, implement, and verify feature workflows
+├── .github/
+│   └── workflows/
+│       └── ci.yml                          # GitHub Actions CI workflow
 ├── apps/
-│   └── web/              # Next.js App Router front-end client
-├── services/
-│   ├── api/              # Go core REST API service
-│   ├── worker/           # Go background processing service
-│   └── intelligence/     # Python analytics & forecasting service
+│   └── web/                                # Next.js 15 App Router web client shell
 ├── contracts/
-│   └── openapi/          # OpenAPI specifications and generated clients
+│   └── openapi/                            # Canonical OpenAPI 3.1 contract specification
 ├── database/
-│   ├── migrations/       # SQL schema migration scripts
-│   ├── queries/          # sqlc query definitions
-│   └── seeds/            # Initial/test data seed scripts
-├── docs/                 # Product requirements, architecture, ADRs, threat model
-│   ├── requirements/     # Product, functional, and NFR specifications
-│   ├── architecture/     # System architecture & data model
-│   ├── adr/              # Architecture Decision Records (ADRs 0001 - 0004)
-│   ├── threat-model/     # STRIDE threat model & mitigations
-│   └── design-reference/ # UI design tokens, screen inventory, and screenshots
-├── infrastructure/
-│   ├── docker/           # Docker setup (deferred)
-│   └── terraform/        # Infrastructure as Code (deferred)
-├── tests/
-│   └── e2e/              # Playwright end-to-end tests
-├── .env.example          # Environment variable template
-├── .gitignore            # Git exclusion rules
-├── .gitattributes        # Git line ending normalization
-├── .editorconfig         # Code formatting configuration
-└── README.md             # Project documentation index
+│   └── migrations/                         # PostgreSQL DDL schema migrations (goose)
+└── services/
+    ├── api/                                # Go Core API (chi/v5, pgx/v5, slog)
+    ├── intelligence/                       # Python intelligence service (Milestone 7 blueprint)
+    └── worker/                             # Go background worker service (Milestone 4 blueprint)
 ```
 
----
+## Milestone 1: Engineering Foundation
 
-## Implementation Roadmap
+Milestone 1 establishes the baseline engineering foundation required for vertical slice implementation:
+* **Next.js Web Shell (`apps/web`)**: Next.js 15 App Router, React 19, strict TypeScript, Tailwind CSS, design tokens, and RTL/Vitest component testing.
+* **Go Core API (`services/api`)**: Go 1.22+ portable modular monolith (`github.com/NIRASHA3/finintel/services/api`), `chi/v5` router, `pgx/v5` connection pool, environment configuration validation, structured `slog` logging, graceful shutdown, and `/health/live` & `/health/ready` handlers.
+* **OpenAPI 3.1 Specification (`contracts/openapi`)**: Canonical contract defining HTTP request/response schemas validated with Redocly CLI.
+* **PostgreSQL Migration Tooling (`database/migrations`)**: Selected `pressly/goose` (v3.24.1) raw SQL CLI migration manager.
+* **GitHub Actions CI (`.github/workflows/ci.yml`)**: Automated pipeline verifying Web lint, type-check, tests, and build; Go format, vet, and unit tests; and OpenAPI contract validation.
 
-| Milestone | Scope | Description | Status |
-|---|---|---|---|
-| **Milestone 0** | Project Foundation | Monorepo layout, agent rules, NFRs, domain invariants, ADRs, OIDC alignment | **Complete** |
-| **Milestone 1** | Engineering Foundation | Monorepo toolchain, code linting, Go/TS/Python base setups, contract definitions | Planned |
-| **Milestone 2** | Identity and Tenancy | OIDC JWT validation, organization provisioning, RBAC, tenant context middleware | Planned |
-| **Milestone 3** | Onboarding | Organization wizard, COA template initialization, member invitation flow | Planned |
-| **Milestone 4** | CSV Transaction Import and Review | File parser, staged transaction pipeline, duplicate detection, review queue | Planned |
-| **Milestone 5** | Accounting | Double-entry posting engine, fiscal period locks, entry immutability, atomic audit logs | Planned |
-| **Milestone 6** | Reports and Dashboard | Income Statement, Balance Sheet, Trial Balance, executive dashboard | Planned |
-| **Milestone 7** | Intelligence | Python FastAPI advisory service, anomaly detection, cash flow forecasting, evaluation | Planned |
-| **Milestone 8** | Production Hardening and Deployment | End-to-end Playwright tests, security hardening, production staging deployment | Planned |
+## Local Development Setup
 
----
+### Prerequisites
+* **Node.js**: `v22.12.0` or higher
+* **pnpm**: `v10.34.5` or higher
+* **Go**: `1.22` or higher
+* **PostgreSQL**: `15+` (Optional for Milestone 1; `/health/live` operates without a running DB)
 
-## Local Development Status
+### Installation & Verification Commands
 
-Local runtime execution, package installations, and scaffolding are deferred until **Milestone 1**.
+```powershell
+# 1. Install workspace dependencies
+pnpm install --frozen-lockfile
 
----
+# 2. Run Web linting, type-checking, and tests
+pnpm --filter web lint
+pnpm --filter web type-check
+pnpm --filter web test
+pnpm --filter web build
 
-## Security & Accounting Principles
+# 3. Run Go formatting check, static analysis, and unit tests
+gofmt -s -l services/api/
+cd services/api; go vet ./...; go test -v ./...
 
-### Accounting Invariants
-- **No Floating-Point Money**: All financial monetary values must use fixed-precision decimal values (`NUMERIC(20,4)`) or integer minor units (e.g., cents).
-- **Balanced Postings**: Posted journal entries must satisfy $\sum \text{Debits} = \sum \text{Credits}$.
-- **Immutability & Reversals**: Posted journal entries cannot be edited or deleted. Adjustments require explicit reversal entries.
-- **Period Locking**: Posted transactions in closed fiscal periods are strictly rejected.
-- **Atomic Audit Trail**: Ledger mutations and audit log records execute atomically in the same database transaction.
-
-### Security Invariants
-- **Provider-Neutral OIDC**: Identity, password storage, MFA, and account recovery are delegated to an external IdP. PostgreSQL stores application user profiles mapped via `external_subject_id`.
-- **Tenant Isolation**: Every database query filters by `organization_id`. Tenant-scoped entities enforce composite foreign keys `(organization_id, id)`.
-- **Human-in-the-Loop AI**: AI suggestions are strictly advisory and CANNOT post journal entries automatically.
-
----
-
-## Contribution Workflow & Commit Standards
-
-### Branching & PR Strategy
-1. Create a feature branch off `main`: `feature/<short-description>`.
-2. Ensure changes pass all agent rules and workflow verifications.
-3. Open a Pull Request with a clear description of domain impact and verification results.
-
-### Commit Message Format
-We enforce Conventional Commits:
-
-```
-<type>(<scope>): <short summary>
-
-[optional body]
-
-[optional footer(s)]
+# 4. Run OpenAPI contract validation
+pnpm lint:openapi
 ```
 
-#### Professional Commit Examples
-- `feat(ledger): implement double-entry journal posting verification`
-- `fix(auth): enforce organization membership validation on transaction review`
-- `docs(adr): record decision on provider-neutral OIDC authentication`
-- `test(api): add unit tests for fiscal period lock enforcement`
+### Migration Tooling Installation (`goose`)
+
+```powershell
+# Install pinned goose development CLI
+go install github.com/pressly/goose/v3/cmd/goose@v3.24.1
+```

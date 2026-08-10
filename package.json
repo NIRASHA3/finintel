@@ -1,0 +1,19 @@
+{
+  "name": "finintel-root",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
+    "lint:web": "pnpm --filter web lint",
+    "type-check:web": "pnpm --filter web type-check",
+    "test:web": "pnpm --filter web test",
+    "lint:openapi": "redocly lint contracts/openapi/openapi.yaml",
+    "lint": "pnpm lint:web && pnpm lint:openapi",
+    "type-check": "pnpm type-check:web",
+    "test": "pnpm test:web",
+    "build": "pnpm build:web"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^1.25.1"
+  }
+}
