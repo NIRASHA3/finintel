@@ -38,7 +38,7 @@ func main() {
 		defer db.Close()
 	}
 
-	router := transportHTTP.NewRouter(db, logger)
+	router := transportHTTP.NewRouterWithConfig(db, logger, cfg)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	server := &http.Server{

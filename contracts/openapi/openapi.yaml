@@ -8,7 +8,8 @@ info:
 servers:
   - url: http://localhost:8080
     description: Local Development Server
-security: []
+security:
+  - BearerAuth: []
 paths:
   /health/live:
     get:
@@ -42,7 +43,122 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthReadyResponse'
+
+  /api/v1/users/me:
+    get:
+      summary: Get Current Authenticated User Profile
+      description: Retrieves profile details of the authenticated user.
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/organizations:
+    post:
+      summary: Create Organization
+      description: Onboards a new organization workspace and assigns the creating user as OWNER.
+      operationId: createOrganization
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization onboarded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+        '400':
+          description: Invalid organization parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: List User Organizations
+      description: Retrieves all organizations where the authenticated user is an active member.
+      operationId: listOrganizations
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of user organizations retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
+        '401':
+          description: Unauthorized request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/organizations/{organizationId}:
+    get:
+      summary: Get Organization Details
+      description: Retrieves organization details by ID for active organization members.
+      operationId: getOrganization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          description: UUID of the organization
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+        '403':
+          description: Access denied for specified organization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Organization not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Provider-Neutral OIDC JWT Access Token
   schemas:
     HealthLiveResponse:
       type: object
@@ -73,3 +189,103 @@ components:
             type: string
           example:
             database: UP
+    UserResponse:
+      type: object
+      required:
+        - id
+        - email
+        - fullName
+        - identityProviderIssuer
+        - externalSubjectId
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          example: user@finintel.io
+        fullName:
+          type: string
+          example: Jane Doe
+        identityProviderIssuer:
+          type: string
+          example: http://localhost:8081/realms/finintel
+        externalSubjectId:
+          type: string
+          example: dev-sub-12345
+        createdAt:
+          type: string
+          format: date-time
+    CreateOrganizationRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: Acme Financial Services
+        baseCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          default: USD
+          example: USD
+        fiscalYearStartMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+          default: 1
+          example: 1
+    OrganizationResponse:
+      type: object
+      required:
+        - id
+        - name
+        - baseCurrency
+        - fiscalYearStartMonth
+        - role
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Acme Financial Services
+        baseCurrency:
+          type: string
+          example: USD
+        fiscalYearStartMonth:
+          type: integer
+          example: 1
+        role:
+          type: string
+          example: OWNER
+        createdAt:
+          type: string
+          format: date-time
+    OrganizationListResponse:
+      type: object
+      required:
+        - organizations
+      properties:
+        organizations:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganizationResponse'
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: UNAUTHORIZED
+        message:
+          type: string
+          example: Missing or invalid authorization token

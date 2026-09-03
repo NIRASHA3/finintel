@@ -9,15 +9,22 @@ import (
 )
 
 type Config struct {
-	Env              string
-	Port             int
-	Host             string
-	LogLevel         string
-	DatabaseURL      string
-	DatabaseMaxConns int32
+	Env                string
+	Port               int
+	Host               string
+	LogLevel           string
+	DatabaseURL        string
+	DatabaseMaxConns   int32
+	CorsAllowedOrigins []string
+	OIDCProviderURL    string
+	OIDCAudience       string
+	OIDCJwksURL        string
+	AuthDevMode        bool
 }
 
 func Load() (*Config, error) {
+	loadDotEnv(".env", "../.env", "../../.env", "services/api/.env")
+
 	env := getEnv("APP_ENV", "development")
 
 	portStr := getEnv("API_PORT", "8080")
@@ -36,13 +43,32 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid DATABASE_MAX_CONNS value '%s': %w", maxConnsStr, err)
 	}
 
+	corsRaw := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+	var corsOrigins []string
+	for _, origin := range strings.Split(corsRaw, ",") {
+		if trimmed := strings.TrimSpace(origin); trimmed != "" {
+			corsOrigins = append(corsOrigins, trimmed)
+		}
+	}
+
+	oidcProvider := getEnv("OIDC_ISSUER_URL", "http://localhost:8081/realms/finintel")
+	oidcAudience := getEnv("OIDC_AUDIENCE", "finintel-api")
+	oidcJwksURL := getEnv("OIDC_JWKS_URL", "http://localhost:8081/realms/finintel/protocol/openid-connect/certs")
+	authDevModeStr := getEnv("AUTH_DEV_MODE", "true")
+	authDevMode := strings.ToLower(authDevModeStr) == "true" || env == "development"
+
 	cfg := &Config{
-		Env:              env,
-		Port:             port,
-		Host:             host,
-		LogLevel:         logLevel,
-		DatabaseURL:      dbURL,
-		DatabaseMaxConns: int32(maxConns),
+		Env:                env,
+		Port:               port,
+		Host:               host,
+		LogLevel:           logLevel,
+		DatabaseURL:        dbURL,
+		DatabaseMaxConns:   int32(maxConns),
+		CorsAllowedOrigins: corsOrigins,
+		OIDCProviderURL:    oidcProvider,
+		OIDCAudience:       oidcAudience,
+		OIDCJwksURL:        oidcJwksURL,
+		AuthDevMode:        authDevMode,
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -83,3 +109,29 @@ func getEnv(key, fallback string) string {
 	}
 	return fallback
 }
+
+func loadDotEnv(paths ...string) {
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				val := strings.TrimSpace(parts[1])
+				val = strings.Trim(val, `"'`)
+				if _, exists := os.LookupEnv(key); !exists || os.Getenv(key) == "" {
+					_ = os.Setenv(key, val)
+				}
+			}
+		}
+	}
+}
+
