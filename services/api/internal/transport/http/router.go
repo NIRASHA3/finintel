@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/NIRASHA3/finintel/services/api/internal/config"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/account"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/ledger"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/organization"
 	customMiddleware "github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
@@ -35,11 +37,6 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	}
 
 	// Middleware pipeline:
-	// 1. RequestID
-	// 2. Recoverer
-	// 3. CORS
-	// 4. Structured Logger
-	// 5. Timeout
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 	r.Use(customMiddleware.CORS(allowedOrigins))
@@ -61,9 +58,13 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	}
 
 	orgService := organization.NewService(pool)
+	accService := account.NewService(pool)
+	ledgerService := ledger.NewService(pool)
 
 	userHandler := NewUserHandler()
 	orgHandler := NewOrganizationHandler(orgService)
+	accHandler := NewAccountHandler(accService)
+	ledgerHandler := NewLedgerHandler(ledgerService)
 
 	// API v1 Protected Routes
 	r.Route("/api/v1", func(r chi.Router) {
@@ -75,6 +76,20 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 			r.Post("/", orgHandler.CreateOrganization)
 			r.Get("/", orgHandler.ListOrganizations)
 			r.Get("/{organizationId}", orgHandler.GetOrganization)
+
+			// Organization-scoped Account routes
+			r.Route("/{organizationId}/accounts", func(r chi.Router) {
+				r.Get("/", accHandler.ListAccounts)
+				r.Post("/", accHandler.CreateAccount)
+				r.Post("/seed", accHandler.SeedDefaultAccounts)
+			})
+
+			// Organization-scoped Ledger routes
+			r.Route("/{organizationId}/journal-entries", func(r chi.Router) {
+				r.Get("/", ledgerHandler.ListJournalEntries)
+				r.Post("/", ledgerHandler.PostJournalEntry)
+				r.Get("/{entryId}", ledgerHandler.GetJournalEntry)
+			})
 		})
 	})
 

@@ -58,17 +58,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
-        '401':
-          description: Unauthorized request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/organizations:
     post:
       summary: Create Organization
-      description: Onboards a new organization workspace and assigns the creating user as OWNER.
+      description: Onboards a new organization workspace and assigns creating user as OWNER.
       operationId: createOrganization
       security:
         - BearerAuth: []
@@ -85,21 +79,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganizationResponse'
-        '400':
-          description: Invalid organization parameters.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
     get:
       summary: List User Organizations
-      description: Retrieves all organizations where the authenticated user is an active member.
+      description: Retrieves all organizations where user is an active member.
       operationId: listOrganizations
       security:
         - BearerAuth: []
@@ -110,17 +92,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganizationListResponse'
-        '401':
-          description: Unauthorized request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/organizations/{organizationId}:
     get:
       summary: Get Organization Details
-      description: Retrieves organization details by ID for active organization members.
+      description: Retrieves organization details by ID.
       operationId: getOrganization
       security:
         - BearerAuth: []
@@ -128,29 +104,168 @@ paths:
         - name: organizationId
           in: path
           required: true
-          description: UUID of the organization
           schema:
             type: string
             format: uuid
       responses:
         '200':
-          description: Organization details retrieved successfully.
+          description: Organization details.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganizationResponse'
-        '403':
-          description: Access denied for specified organization.
+
+  /api/v1/organizations/{organizationId}/accounts:
+    get:
+      summary: List Chart of Accounts
+      description: Retrieves accounts for an organization.
+      operationId: listAccounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of accounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountListResponse'
+    post:
+      summary: Create Account
+      description: Creates a custom account in Chart of Accounts.
+      operationId: createAccount
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Account created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+
+  /api/v1/organizations/{organizationId}/accounts/seed:
+    post:
+      summary: Seed Standard Chart of Accounts
+      description: Seeds default standard COA template for an organization.
+      operationId: seedAccounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Seeded Chart of Accounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountListResponse'
+
+  /api/v1/organizations/{organizationId}/journal-entries:
+    get:
+      summary: List Journal Entries
+      description: Retrieves general ledger entries for an organization.
+      operationId: listJournalEntries
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of journal entries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntryListResponse'
+    post:
+      summary: Post Journal Entry
+      description: Posts a balanced double-entry journal entry enforcing sum(Debits) == sum(Credits).
+      operationId: postJournalEntry
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJournalEntryRequest'
+      responses:
+        '201':
+          description: Journal entry posted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntryResponse'
+        '400':
+          description: Unbalanced entry or invalid parameters.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Organization not found.
+
+  /api/v1/organizations/{organizationId}/journal-entries/{entryId}:
+    get:
+      summary: Get Journal Entry Details
+      description: Retrieves details of a specific journal entry.
+      operationId: getJournalEntry
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Journal entry details.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/JournalEntryResponse'
 
 components:
   securitySchemes:
@@ -158,7 +273,6 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Provider-Neutral OIDC JWT Access Token
   schemas:
     HealthLiveResponse:
       type: object
@@ -167,10 +281,6 @@ components:
       properties:
         status:
           type: string
-          enum:
-            - UP
-            - DOWN
-          example: UP
     HealthReadyResponse:
       type: object
       required:
@@ -179,16 +289,10 @@ components:
       properties:
         status:
           type: string
-          enum:
-            - UP
-            - DOWN
-          example: UP
         checks:
           type: object
           additionalProperties:
             type: string
-          example:
-            database: UP
     UserResponse:
       type: object
       required:
@@ -204,20 +308,14 @@ components:
           format: uuid
         email:
           type: string
-          format: email
-          example: user@finintel.io
         fullName:
           type: string
-          example: Jane Doe
         identityProviderIssuer:
           type: string
-          example: http://localhost:8081/realms/finintel
         externalSubjectId:
           type: string
-          example: dev-sub-12345
         createdAt:
           type: string
-          format: date-time
     CreateOrganizationRequest:
       type: object
       required:
@@ -225,21 +323,10 @@ components:
       properties:
         name:
           type: string
-          minLength: 2
-          maxLength: 255
-          example: Acme Financial Services
         baseCurrency:
           type: string
-          minLength: 3
-          maxLength: 3
-          default: USD
-          example: USD
         fiscalYearStartMonth:
           type: integer
-          minimum: 1
-          maximum: 12
-          default: 1
-          example: 1
     OrganizationResponse:
       type: object
       required:
@@ -255,19 +342,14 @@ components:
           format: uuid
         name:
           type: string
-          example: Acme Financial Services
         baseCurrency:
           type: string
-          example: USD
         fiscalYearStartMonth:
           type: integer
-          example: 1
         role:
           type: string
-          example: OWNER
         createdAt:
           type: string
-          format: date-time
     OrganizationListResponse:
       type: object
       required:
@@ -277,6 +359,165 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OrganizationResponse'
+    AccountResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - accountCode
+        - name
+        - accountType
+        - isActive
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        accountCode:
+          type: string
+        name:
+          type: string
+        accountType:
+          type: string
+          enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]
+        isActive:
+          type: boolean
+    CreateAccountRequest:
+      type: object
+      required:
+        - accountCode
+        - name
+        - accountType
+      properties:
+        accountCode:
+          type: string
+        name:
+          type: string
+        accountType:
+          type: string
+          enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]
+    AccountListResponse:
+      type: object
+      required:
+        - accounts
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountResponse'
+    JournalEntryLineRequest:
+      type: object
+      required:
+        - accountId
+        - debitAmountMinorUnits
+        - creditAmountMinorUnits
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        debitAmountMinorUnits:
+          type: integer
+          minimum: 0
+        creditAmountMinorUnits:
+          type: integer
+          minimum: 0
+        memo:
+          type: string
+    JournalEntryLineResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - journalEntryId
+        - accountId
+        - debitAmountMinorUnits
+        - creditAmountMinorUnits
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        journalEntryId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        accountCode:
+          type: string
+        accountName:
+          type: string
+        debitAmountMinorUnits:
+          type: integer
+        creditAmountMinorUnits:
+          type: integer
+        memo:
+          type: string
+    CreateJournalEntryRequest:
+      type: object
+      required:
+        - transactionDate
+        - description
+        - lines
+      properties:
+        transactionDate:
+          type: string
+          format: date
+        description:
+          type: string
+        lines:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/JournalEntryLineRequest'
+    JournalEntryResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - entryNumber
+        - transactionDate
+        - description
+        - status
+        - createdAt
+        - lines
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        entryNumber:
+          type: integer
+        transactionDate:
+          type: string
+          format: date
+        description:
+          type: string
+        status:
+          type: string
+        postedByUserId:
+          type: string
+        createdAt:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalEntryLineResponse'
+    JournalEntryListResponse:
+      type: object
+      required:
+        - entries
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalEntryResponse'
     ErrorResponse:
       type: object
       required:
@@ -285,7 +526,5 @@ components:
       properties:
         error:
           type: string
-          example: UNAUTHORIZED
         message:
           type: string
-          example: Missing or invalid authorization token

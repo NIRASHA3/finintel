@@ -8,6 +8,8 @@ import {
   Organization,
   UserProfile,
 } from "../../lib/api-client";
+import { ChartOfAccountsView } from "./ChartOfAccountsView";
+import { JournalLedgerView } from "./JournalLedgerView";
 
 export function OrganizationManager() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -16,6 +18,7 @@ export function OrganizationManager() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "coa" | "ledger">("overview");
 
   // Form state
   const [newOrgName, setNewOrgName] = useState<string>("");
@@ -34,7 +37,6 @@ export function OrganizationManager() {
       ]);
       setUser(uData);
 
-      // Deduplicate organizations by ID to guarantee unique keys
       const uniqueOrgs = Array.from(
         new Map(orgsData.map((org) => [org.id, org])).values()
       );
@@ -70,14 +72,12 @@ export function OrganizationManager() {
     setCreateError(null);
 
     try {
-      // 1. Perform POST network request to Go API
       const created = await createOrganization({
         name: newOrgName.trim(),
         baseCurrency,
         fiscalYearStartMonth: Number(fiscalMonth),
       });
 
-      // 2. Re-fetch user organizations from API backend to guarantee database sync
       const freshOrgs = await fetchUserOrganizations();
       const uniqueOrgs = Array.from(
         new Map([created, ...freshOrgs].map((org) => [org.id, org])).values()
@@ -189,30 +189,78 @@ export function OrganizationManager() {
         </div>
       )}
 
-      {/* Active Workspace Info Cards */}
+      {/* Navigation Tabs for Active Workspace */}
       {activeOrg && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 backdrop-blur-md">
-            <p className="text-xs font-medium text-slate-400">Base Currency</p>
-            <p className="mt-1 text-xl font-bold tracking-tight text-emerald-400">
-              {activeOrg.baseCurrency}
-            </p>
-            <p className="mt-1 text-[11px] text-slate-500">ISO 4217 Currency Code</p>
+        <div className="space-y-6">
+          <div className="flex border-b border-slate-800 space-x-8">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`pb-3 text-xs font-semibold tracking-wide transition border-b-2 ${
+                activeTab === "overview"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Workspace Overview
+            </button>
+            <button
+              onClick={() => setActiveTab("coa")}
+              className={`pb-3 text-xs font-semibold tracking-wide transition border-b-2 ${
+                activeTab === "coa"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Chart of Accounts (COA)
+            </button>
+            <button
+              onClick={() => setActiveTab("ledger")}
+              className={`pb-3 text-xs font-semibold tracking-wide transition border-b-2 ${
+                activeTab === "ledger"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              General Ledger Entries
+            </button>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 backdrop-blur-md">
-            <p className="text-xs font-medium text-slate-400">Fiscal Year Start Month</p>
-            <p className="mt-1 text-xl font-bold tracking-tight text-slate-100">
-              Month {activeOrg.fiscalYearStartMonth}
-            </p>
-            <p className="mt-1 text-[11px] text-slate-500">Accounting Period Alignment</p>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 backdrop-blur-md">
-            <p className="text-xs font-medium text-slate-400">Multi-Tenant Key</p>
-            <p className="mt-1 font-mono text-xs text-slate-300 truncate">
-              {activeOrg.id}
-            </p>
-            <p className="mt-1 text-[11px] text-slate-500">Composite Tenant Safety Isolation</p>
-          </div>
+
+          {/* Tab 1: Overview */}
+          {activeTab === "overview" && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 backdrop-blur-md">
+                <p className="text-xs font-medium text-slate-400">Base Currency</p>
+                <p className="mt-1 text-xl font-bold tracking-tight text-emerald-400">
+                  {activeOrg.baseCurrency}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500">ISO 4217 Currency Code</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 backdrop-blur-md">
+                <p className="text-xs font-medium text-slate-400">Fiscal Year Start Month</p>
+                <p className="mt-1 text-xl font-bold tracking-tight text-slate-100">
+                  Month {activeOrg.fiscalYearStartMonth}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500">Accounting Period Alignment</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 backdrop-blur-md">
+                <p className="text-xs font-medium text-slate-400">Multi-Tenant Key</p>
+                <p className="mt-1 font-mono text-xs text-slate-300 truncate">
+                  {activeOrg.id}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500">Composite Tenant Safety Isolation</p>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Chart of Accounts */}
+          {activeTab === "coa" && (
+            <ChartOfAccountsView organizationId={activeOrg.id} />
+          )}
+
+          {/* Tab 3: General Ledger */}
+          {activeTab === "ledger" && (
+            <JournalLedgerView organizationId={activeOrg.id} />
+          )}
         </div>
       )}
 
