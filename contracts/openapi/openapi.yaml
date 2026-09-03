@@ -267,6 +267,140 @@ paths:
               schema:
                 $ref: '#/components/schemas/JournalEntryResponse'
 
+  /api/v1/organizations/{organizationId}/staged-transactions:
+    get:
+      summary: List Staged Transactions
+      description: Retrieves staged bank transactions filtered by status (PENDING, APPROVED, REJECTED, POSTED).
+      operationId: listStagedTransactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, PENDING, APPROVED, REJECTED, POSTED]
+      responses:
+        '200':
+          description: List of staged transactions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StagedTransactionListResponse'
+
+  /api/v1/organizations/{organizationId}/staged-transactions/upload:
+    post:
+      summary: Upload CSV Bank Statement
+      description: Ingests and stages bank CSV transactions with SHA-256 deduplication and auto-categorization.
+      operationId: uploadCSV
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: CSV processed and staged successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CSVUploadResponse'
+
+  /api/v1/organizations/{organizationId}/staged-transactions/{id}/approve:
+    post:
+      summary: Approve Staged Transaction
+      description: Approves a staged transaction and assigns target account ID.
+      operationId: approveStagedTransaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveStagedTransactionRequest'
+      responses:
+        '200':
+          description: Transaction approved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StagedTransactionResponse'
+
+  /api/v1/organizations/{organizationId}/staged-transactions/{id}/reject:
+    post:
+      summary: Reject Staged Transaction
+      description: Rejects a staged transaction.
+      operationId: rejectStagedTransaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction rejected successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StagedTransactionResponse'
+
+  /api/v1/organizations/{organizationId}/staged-transactions/batch-post:
+    post:
+      summary: Batch Post Approved Transactions
+      description: Batch-posts all APPROVED staged transactions into journal entries and audit logs within a single PostgreSQL transaction block.
+      operationId: batchPostStagedTransactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Approved transactions batch-posted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchPostResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -518,6 +652,86 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/JournalEntryResponse'
+    StagedTransactionResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - transactionDate
+        - description
+        - amountMinorUnits
+        - rawDataHash
+        - status
+        - confidenceScore
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        transactionDate:
+          type: string
+          format: date
+        description:
+          type: string
+        amountMinorUnits:
+          type: integer
+        rawDataHash:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, POSTED]
+        suggestedAccountId:
+          type: string
+          format: uuid
+        suggestedAccountCode:
+          type: string
+        suggestedAccountName:
+          type: string
+        confidenceScore:
+          type: number
+        createdAt:
+          type: string
+    StagedTransactionListResponse:
+      type: object
+      required:
+        - stagedTransactions
+      properties:
+        stagedTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/StagedTransactionResponse'
+    ApproveStagedTransactionRequest:
+      type: object
+      properties:
+        accountId:
+          type: string
+          format: uuid
+    CSVUploadResponse:
+      type: object
+      required:
+        - insertedCount
+        - message
+      properties:
+        insertedCount:
+          type: integer
+        message:
+          type: string
+    BatchPostResponse:
+      type: object
+      required:
+        - postedEntriesCount
+        - totalDebitsMinorUnits
+        - totalCreditsMinorUnits
+      properties:
+        postedEntriesCount:
+          type: integer
+        totalDebitsMinorUnits:
+          type: integer
+        totalCreditsMinorUnits:
+          type: integer
     ErrorResponse:
       type: object
       required:

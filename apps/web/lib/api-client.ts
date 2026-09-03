@@ -74,6 +74,27 @@ export interface PostJournalEntryParams {
   lines: JournalEntryLineRequest[];
 }
 
+export interface StagedTransaction {
+  id: string;
+  organizationId: string;
+  transactionDate: string;
+  description: string;
+  amountMinorUnits: number;
+  rawDataHash: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "POSTED";
+  suggestedAccountId?: string;
+  suggestedAccountCode?: string;
+  suggestedAccountName?: string;
+  confidenceScore: number;
+  createdAt: string;
+}
+
+export interface BatchPostResult {
+  postedEntriesCount: number;
+  totalDebitsMinorUnits: number;
+  totalCreditsMinorUnits: number;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export async function fetchCurrentUser(): Promise<UserProfile> {
@@ -214,6 +235,105 @@ export async function postJournalEntry(orgId: string, params: PostJournalEntryPa
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.message || `Failed to post journal entry: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchStagedTransactions(orgId: string, status?: string): Promise<StagedTransaction[]> {
+  const query = status && status !== "ALL" ? `?status=${status}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions${query}`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch staged transactions: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.stagedTransactions || [];
+}
+
+export async function uploadCSVStagedTransactions(orgId: string, fileOrContent: File | string): Promise<{ insertedCount: number; message: string }> {
+  let body: any;
+  const headers: Record<string, string> = {
+    Authorization: "Bearer dev-token-admin@finintel.io",
+  };
+
+  if (typeof fileOrContent === "string") {
+    body = fileOrContent;
+    headers["Content-Type"] = "text/csv";
+  } else {
+    const formData = new FormData();
+    formData.append("file", fileOrContent);
+    body = formData;
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions/upload`, {
+    method: "POST",
+    headers,
+    body,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to upload CSV: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function approveStagedTransaction(orgId: string, id: string, accountId?: string): Promise<StagedTransaction> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions/${id}/approve`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ accountId }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to approve staged transaction: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function rejectStagedTransaction(orgId: string, id: string): Promise<StagedTransaction> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions/${id}/reject`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to reject staged transaction: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function batchPostStagedTransactions(orgId: string): Promise<BatchPostResult> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions/batch-post`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to batch post approved transactions: HTTP ${res.status}`);
   }
 
   return res.json();

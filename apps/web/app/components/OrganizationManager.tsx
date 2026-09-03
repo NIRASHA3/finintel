@@ -10,6 +10,7 @@ import {
 } from "../../lib/api-client";
 import { ChartOfAccountsView } from "./ChartOfAccountsView";
 import { JournalLedgerView } from "./JournalLedgerView";
+import { StagedTransactionsView } from "./StagedTransactionsView";
 
 export function OrganizationManager() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -18,7 +19,7 @@ export function OrganizationManager() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "coa" | "ledger">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "coa" | "ledger" | "staging">("overview");
 
   // Form state
   const [newOrgName, setNewOrgName] = useState<string>("");
@@ -223,6 +224,16 @@ export function OrganizationManager() {
             >
               General Ledger Entries
             </button>
+            <button
+              onClick={() => setActiveTab("staging")}
+              className={`pb-3 text-xs font-semibold tracking-wide transition border-b-2 ${
+                activeTab === "staging"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              CSV Staging & Review Queue
+            </button>
           </div>
 
           {/* Tab 1: Overview */}
@@ -260,6 +271,11 @@ export function OrganizationManager() {
           {/* Tab 3: General Ledger */}
           {activeTab === "ledger" && (
             <JournalLedgerView organizationId={activeOrg.id} />
+          )}
+
+          {/* Tab 4: CSV Staging & Review Queue */}
+          {activeTab === "staging" && (
+            <StagedTransactionsView organizationId={activeOrg.id} />
           )}
         </div>
       )}

@@ -13,6 +13,7 @@ import (
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/account"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/ledger"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/organization"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/staging"
 	customMiddleware "github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
@@ -60,11 +61,13 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	orgService := organization.NewService(pool)
 	accService := account.NewService(pool)
 	ledgerService := ledger.NewService(pool)
+	stagingService := staging.NewService(pool)
 
 	userHandler := NewUserHandler()
 	orgHandler := NewOrganizationHandler(orgService)
 	accHandler := NewAccountHandler(accService)
 	ledgerHandler := NewLedgerHandler(ledgerService)
+	stagingHandler := NewStagingHandler(stagingService)
 
 	// API v1 Protected Routes
 	r.Route("/api/v1", func(r chi.Router) {
@@ -89,6 +92,15 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 				r.Get("/", ledgerHandler.ListJournalEntries)
 				r.Post("/", ledgerHandler.PostJournalEntry)
 				r.Get("/{entryId}", ledgerHandler.GetJournalEntry)
+			})
+
+			// Organization-scoped Staged Transaction routes
+			r.Route("/{organizationId}/staged-transactions", func(r chi.Router) {
+				r.Get("/", stagingHandler.ListStagedTransactions)
+				r.Post("/upload", stagingHandler.UploadCSV)
+				r.Post("/{id}/approve", stagingHandler.ApproveStagedTransaction)
+				r.Post("/{id}/reject", stagingHandler.RejectStagedTransaction)
+				r.Post("/batch-post", stagingHandler.BatchPostApprovedTransactions)
 			})
 		})
 	})
