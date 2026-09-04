@@ -21,29 +21,30 @@ export function StagedTransactionsView({ organizationId }: Props) {
   const [stagedItems, setStagedItems] = useState<StagedTransaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isPosting, setIsPosting] = useState<boolean>(false);
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [overrideAccounts, setOverrideAccounts] = useState<Record<string, string>>({});
 
   const loadData = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
     setError(null);
     try {
-      const [stagedData, accData] = await Promise.all([
-        fetchStagedTransactions(organizationId, statusFilter),
+      const [sData, aData] = await Promise.all([
+        fetchStagedTransactions(organizationId),
         fetchAccounts(organizationId),
       ]);
-      setStagedItems(stagedData);
-      setAccounts(accData);
+      setStagedItems(sData);
+      setAccounts(aData);
     } catch (err: any) {
       setError(err.message || "Failed to load staged transactions");
     } finally {
       setLoading(false);
     }
-  }, [organizationId, statusFilter]);
+  }, [organizationId]);
 
   useEffect(() => {
     loadData();
@@ -59,12 +60,13 @@ export function StagedTransactionsView({ organizationId }: Props) {
 
     try {
       const res = await uploadCSVStagedTransactions(organizationId, file);
-      setNotice(`✅ Successfully processed CSV statement: ${res.insertedCount} new transactions staged (duplicates skipped).`);
+      setNotice(`✅ CSV Uploaded Successfully: ${res.insertedCount} new transactions staged for review.`);
       await loadData();
     } catch (err: any) {
       setError(err.message || "Failed to upload CSV");
     } finally {
       setIsUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -73,33 +75,28 @@ export function StagedTransactionsView({ organizationId }: Props) {
     setError(null);
     setNotice(null);
 
-    const sampleCSV = `Date,Description,Amount,Category
-2026-09-01,AWS Cloud Infrastructure Hosting,-450.00,Cloud
-2026-09-02,Stripe Monthly SaaS Revenue Payout,2450.00,Revenue
-2026-09-03,WeWork Office Monthly Rent,-1200.00,Rent
-2026-09-03,GitHub Team Subscription,-84.00,Software
-2026-09-04,Monthly Engineering Team Payroll,-3500.00,Payroll`;
+    const sampleCSV = `Transaction Date,Payee / Description,Amount,Reference Number
+2026-03-01,AWS Cloud Infrastructure Services,-450.00,AWS-994821
+2026-03-02,Stripe Client Revenue Payment,3250.00,STRIPE-88123
+2026-03-03,Google Workspace Enterprise Subscription,-120.00,GSuite-33211
+2026-03-04,WeWork Office Space Lease,-1800.00,WEWORK-9901
+2026-03-05,Client Invoice #1042 Direct Deposit,5000.00,INV-1042`;
 
     try {
       const res = await uploadCSVStagedTransactions(organizationId, sampleCSV);
-      setNotice(`⚡ Demo Sample CSV Staged: ${res.insertedCount} transactions parsed & auto-categorized!`);
+      setNotice(`⚡ Sample Bank CSV Generated & Staged: ${res.insertedCount} transactions added.`);
       await loadData();
     } catch (err: any) {
-      setError(err.message || "Failed to stage sample CSV");
+      setError(err.message || "Failed to generate sample CSV");
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleApprove = async (item: StagedTransaction, selectedAccId?: string) => {
-    const targetId = selectedAccId || item.suggestedAccountId;
-    if (!targetId) {
-      setError("Please select a target account from the dropdown before approving.");
-      return;
-    }
-
+  const handleApprove = async (item: StagedTransaction) => {
+    const targetAccountId = overrideAccounts[item.id] || item.suggestedAccountId;
     try {
-      const updated = await approveStagedTransaction(organizationId, item.id, targetId);
+      const updated = await approveStagedTransaction(organizationId, item.id, targetAccountId);
       setStagedItems((prev) =>
         prev.map((i) => (i.id === item.id ? { ...i, ...updated, status: "APPROVED" } : i))
       );
@@ -147,8 +144,8 @@ export function StagedTransactionsView({ organizationId }: Props) {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-slate-400">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent mx-auto mb-2" />
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500 shadow-sm">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent mx-auto mb-2" />
         Loading Staged Transactions & Rule Engine...
       </div>
     );
@@ -157,10 +154,10 @@ export function StagedTransactionsView({ organizationId }: Props) {
   return (
     <div className="space-y-6">
       {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/80 p-5 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div>
-          <h3 className="text-lg font-bold text-slate-100">CSV Staging & Review Queue</h3>
-          <p className="text-xs text-slate-400">
+          <h3 className="text-base font-bold text-slate-900">CSV Staging & Review Queue</h3>
+          <p className="text-xs text-slate-500">
             Automated SHA-256 deduplication, rule-matching categorization, and batch posting engine
           </p>
         </div>
@@ -169,12 +166,12 @@ export function StagedTransactionsView({ organizationId }: Props) {
           <button
             onClick={handleGenerateSampleCSV}
             disabled={isUploading}
-            className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition disabled:opacity-50"
+            className="rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50"
           >
             {isUploading ? "Staging..." : "⚡ Auto-Generate Sample Bank CSV"}
           </button>
 
-          <label className="cursor-pointer rounded-xl bg-slate-800 border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition">
+          <label className="cursor-pointer rounded-xl bg-slate-100 border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 transition">
             <span>📁 Upload Bank CSV</span>
             <input
               type="file"
@@ -188,7 +185,7 @@ export function StagedTransactionsView({ organizationId }: Props) {
           <button
             onClick={handleBatchPost}
             disabled={isPosting || approvedCount === 0}
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-900/30 hover:bg-emerald-500 active:scale-[0.98] transition disabled:opacity-40"
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active:scale-[0.98] transition disabled:opacity-40"
           >
             {isPosting ? "Posting Batch..." : `⚡ Batch Post Approved (${approvedCount})`}
           </button>
@@ -196,27 +193,27 @@ export function StagedTransactionsView({ organizationId }: Props) {
       </div>
 
       {notice && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-300">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800">
           {notice}
         </div>
       )}
 
       {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs text-rose-300">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
           {error}
         </div>
       )}
 
       {/* Filter Tabs */}
-      <div className="flex border-b border-slate-800 space-x-6 text-xs font-semibold">
+      <div className="flex border-b border-slate-200 space-x-6 text-xs font-bold">
         {["ALL", "PENDING", "APPROVED", "REJECTED", "POSTED"].map((st) => (
           <button
             key={st}
             onClick={() => setStatusFilter(st)}
             className={`pb-2.5 transition border-b-2 ${
               statusFilter === st
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-emerald-600 text-emerald-700"
+                : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             {st} ({stagedItems.filter((i) => st === "ALL" || i.status === st).length})
@@ -226,103 +223,94 @@ export function StagedTransactionsView({ organizationId }: Props) {
 
       {/* Staged Transactions Table */}
       {stagedItems.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/40 p-12 text-center">
-          <p className="text-sm text-slate-300 font-medium">No staged transactions found</p>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+          <p className="text-sm text-slate-900 font-bold">No staged transactions found</p>
           <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
             Upload a bank statement CSV or click &quot;Auto-Generate Sample Bank CSV&quot; to test rule matching and batch journal posting.
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 shadow-xl">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-mono tracking-wider">
+            <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 uppercase font-semibold">
               <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3 text-right">Amount ($)</th>
-                <th className="px-4 py-3">Suggested Account / Rule Match</th>
-                <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3.5">Date</th>
+                <th className="px-4 py-3.5">Description</th>
+                <th className="px-4 py-3.5 text-right">Amount ($)</th>
+                <th className="px-4 py-3.5">Suggested Account / Rule Match</th>
+                <th className="px-4 py-3.5 text-center">Status</th>
+                <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-200">
-              {stagedItems.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-800/40 transition">
-                  <td className="px-4 py-3 font-mono text-slate-400">{item.transactionDate}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-100">{item.description}</div>
-                    <div className="text-[10px] font-mono text-slate-500 truncate max-w-[180px]">
-                      Hash: {item.rawDataHash.substring(0, 12)}...
-                    </div>
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-right font-mono font-bold ${
-                      item.amountMinorUnits > 0 ? "text-emerald-400" : "text-slate-100"
-                    }`}
-                  >
-                    {item.amountMinorUnits > 0 ? "+" : ""}
-                    {(item.amountMinorUnits / 100).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center space-x-2">
-                      <select
-                        value={item.suggestedAccountId || ""}
-                        disabled={item.status === "POSTED"}
-                        onChange={(e) => handleApprove(item, e.target.value)}
-                        className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-100 focus:border-emerald-500 focus:outline-none"
-                      >
-                        <option value="">-- Select Target Account --</option>
-                        {accounts.map((acc) => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.accountCode} - {acc.name} ({acc.accountType})
-                          </option>
-                        ))}
-                      </select>
-                      {item.confidenceScore > 0 && (
-                        <span className="rounded bg-sky-500/10 border border-sky-500/30 px-1.5 py-0.5 text-[9px] font-semibold text-sky-400">
-                          Match {Math.round(item.confidenceScore * 100)}%
+            <tbody className="divide-y divide-slate-200 text-slate-800 font-mono">
+              {stagedItems
+                .filter((item) => statusFilter === "ALL" || item.status === statusFilter)
+                .map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/80 transition">
+                    <td className="px-4 py-3 text-slate-600 font-medium">{item.transactionDate}</td>
+                    <td className="px-4 py-3 font-sans font-medium text-slate-900">{item.description}</td>
+                    <td className="px-4 py-3 text-right font-bold">
+                      <span className={item.amountMinorUnits < 0 ? "text-rose-600" : "text-emerald-600"}>
+                        {(item.amountMinorUnits / 100).toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-sans">
+                      {item.status === "PENDING" ? (
+                        <select
+                          value={overrideAccounts[item.id] || item.suggestedAccountId || ""}
+                          onChange={(e) =>
+                            setOverrideAccounts((prev) => ({ ...prev, [item.id]: e.target.value }))
+                          }
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 focus:border-emerald-500 focus:outline-none"
+                        >
+                          <option value="">-- Rule Suggested: {item.suggestedAccountCode || "None"} --</option>
+                          {accounts.map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              {acc.accountCode} - {acc.name} ({acc.accountType})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-slate-700 font-medium">
+                          {item.suggestedAccountCode ? `${item.suggestedAccountCode} - ${item.suggestedAccountName}` : "Categorized"}
                         </span>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
-                        item.status === "APPROVED"
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                          : item.status === "POSTED"
-                          ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
-                          : item.status === "REJECTED"
-                          ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                          : "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    {item.status !== "POSTED" && (
-                      <>
-                        <button
-                          onClick={() => handleApprove(item)}
-                          className="rounded bg-emerald-600/20 border border-emerald-500/40 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-600/40 transition"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleReject(item)}
-                          className="rounded bg-rose-600/20 border border-rose-500/40 px-2 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-600/40 transition"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    {item.status === "POSTED" && (
-                      <span className="text-[10px] text-slate-500 font-mono">Posted to Ledger</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 text-center font-sans">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
+                          item.status === "APPROVED"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : item.status === "REJECTED"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : item.status === "POSTED"
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                            : "bg-amber-50 text-amber-800 border-amber-200"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-sans">
+                      {item.status === "PENDING" && (
+                        <div className="flex items-center justify-end space-x-2">
+                          <button
+                            onClick={() => handleApprove(item)}
+                            className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 transition"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(item)}
+                            className="rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

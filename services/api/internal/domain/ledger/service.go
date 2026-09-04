@@ -19,6 +19,7 @@ var (
 	ErrInvalidTransactionDate = errors.New("transaction date is required")
 	ErrDescriptionRequired    = errors.New("transaction description is required (at least 3 characters)")
 	ErrAccountNotFound        = errors.New("one or more target accounts do not exist in this organization or are inactive")
+	ErrFiscalPeriodLocked     = errors.New("cannot post journal entry into a closed or locked fiscal period")
 	ErrDatabaseUnavailable    = errors.New("database connection is unavailable")
 )
 
@@ -116,6 +117,20 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 		return nil, fmt.Errorf("failed to start posting transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	// 0. FISCAL PERIOD LOCK SAFEGUARD: Verify period for transaction date is open
+	var periodStatus string
+	periodCheckQuery := `
+		SELECT status 
+		FROM fiscal_periods 
+		WHERE organization_id = $1 AND start_date <= $2::date AND end_date >= $2::date;
+	`
+	err = tx.QueryRow(ctx, periodCheckQuery, orgID, txDate).Scan(&periodStatus)
+	if err == nil {
+		if periodStatus == "CLOSED" || periodStatus == "LOCKED" {
+			return nil, fmt.Errorf("%w: period for date %s is %s", ErrFiscalPeriodLocked, txDate, periodStatus)
+		}
+	}
 
 	// 1. Verify target accounts exist and belong to this organization
 	for _, line := range params.Lines {

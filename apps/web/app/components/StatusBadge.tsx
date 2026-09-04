@@ -7,13 +7,13 @@ export interface StatusBadgeProps {
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label }) => {
   const statusStyles = {
-    ONLINE: "bg-emerald-100 text-emerald-800 border-emerald-300",
-    DEVELOPMENT: "bg-amber-100 text-amber-900 border-amber-300",
-    OFFLINE: "bg-rose-100 text-rose-800 border-rose-300",
+    ONLINE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    DEVELOPMENT: "bg-amber-50 text-amber-800 border-amber-200",
+    OFFLINE: "bg-rose-50 text-rose-700 border-rose-200",
   };
 
   const dotStyles = {
-    ONLINE: "bg-emerald-500",
+    ONLINE: "bg-emerald-500 animate-pulse",
     DEVELOPMENT: "bg-amber-500",
     OFFLINE: "bg-rose-500",
   };
@@ -22,7 +22,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label }) => {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border ${statusStyles[status]}`}
+      className={`inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold rounded-full border shadow-xs ${statusStyles[status]}`}
       role="status"
       aria-label={`System status: ${displayLabel}`}
     >

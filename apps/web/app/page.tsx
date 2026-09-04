@@ -4,48 +4,48 @@ import { OrganizationManager } from "./components/OrganizationManager";
 
 export default function HomePage() {
   return (
-    <div className="max-w-container mx-auto px-4 py-8 space-y-8">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Hero Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
         <div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            FinIntel Platform
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            FinIntel Operations Console
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Autonomous Multi-Tenant Financial Operations SaaS & Accounting Engine
+          <p className="text-slate-500 text-xs sm:text-sm mt-1 font-medium">
+            Multi-Tenant Financial Operations SaaS & Fixed-Precision Double-Entry Ledger Engine
           </p>
         </div>
         <div>
-          <StatusBadge status="ONLINE" label="Milestone 2 - Auth & REST API Live" />
+          <StatusBadge status="ONLINE" label="Core API & Operations Live" />
         </div>
       </div>
 
-      {/* Organization Manager Component */}
+      {/* Main Workspace Component */}
       <OrganizationManager />
 
-      {/* Architecture Foundations Summary */}
-      <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 backdrop-blur-lg shadow-xl">
-        <h2 className="text-lg font-bold text-slate-100 mb-2">
+      {/* System Core Architecture Summary */}
+      <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+        <h2 className="text-base font-bold text-slate-900 mb-1">
           System Core Invariants & Architecture
         </h2>
-        <p className="text-sm text-slate-400 leading-relaxed mb-6">
-          FinIntel combines strict double-entry ledger equality with provider-neutral authentication, composite tenant keys, and append-only atomic audit logging.
+        <p className="text-xs text-slate-500 leading-relaxed mb-5">
+          FinIntel enforces strict double-entry ledger equality, composite multi-tenant RLS data safety, and append-only atomic audit logging.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/50">
-            <h3 className="font-semibold text-slate-200 text-sm mb-1">Architecture</h3>
-            <p className="text-xs text-slate-400">Go 1.22 REST API Core with Chi Router, Pgx pool, and Next.js 15 App Router client.</p>
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+            <h3 className="font-semibold text-slate-900 text-xs mb-1">Core Architecture</h3>
+            <p className="text-xs text-slate-600">Go 1.22 REST API with Chi router, Pgx pool, and Next.js 15 App Router web client.</p>
           </div>
 
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/50">
-            <h3 className="font-semibold text-slate-200 text-sm mb-1">Tenant Isolation</h3>
-            <p className="text-xs text-slate-400">Shared-schema PostgreSQL data model with composite tenant safety keys and RLS policies.</p>
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+            <h3 className="font-semibold text-slate-900 text-xs mb-1">Tenant Isolation</h3>
+            <p className="text-xs text-slate-600">Shared-schema PostgreSQL data model with composite tenant safety keys and RLS policies.</p>
           </div>
 
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/50">
-            <h3 className="font-semibold text-slate-200 text-sm mb-1">Accounting Invariants</h3>
-            <p className="text-xs text-slate-400">Fixed-precision integer minor units (sum of Debits equals sum of Credits) and atomic audit logs.</p>
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+            <h3 className="font-semibold text-slate-900 text-xs mb-1">Accounting Invariants</h3>
+            <p className="text-xs text-slate-600">Fixed-precision integer minor units, period locking safeguards, and atomic audit logging.</p>
           </div>
         </div>
       </div>

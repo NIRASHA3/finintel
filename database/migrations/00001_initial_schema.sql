@@ -132,7 +132,7 @@ CREATE TABLE audit_logs (
     correlation_id VARCHAR(64) NOT NULL,
     entity_type VARCHAR(100) NOT NULL,
     entity_id UUID NOT NULL,
-    action VARCHAR(50) NOT NULL CHECK (action IN ('CREATE', 'UPDATE', 'POST', 'REVERSE', 'DELETE', 'LOCK')),
+    action VARCHAR(50) NOT NULL CHECK (action IN ('CREATE', 'UPDATE', 'POST', 'REVERSE', 'DELETE', 'LOCK', 'CLOSE')),
     changes JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_audit_logs_org_id UNIQUE (organization_id, id)

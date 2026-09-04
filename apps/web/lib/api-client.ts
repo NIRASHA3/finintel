@@ -338,3 +338,232 @@ export async function batchPostStagedTransactions(orgId: string): Promise<BatchP
 
   return res.json();
 }
+
+// Phase 5 Interfaces
+export interface AccountReportLine {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  accountType: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
+  debitAmountMinorUnits: number;
+  creditAmountMinorUnits: number;
+  netBalanceMinorUnits: number;
+}
+
+export interface TrialBalanceReport {
+  asOfDate: string;
+  accounts: AccountReportLine[];
+  totalDebitsMinorUnits: number;
+  totalCreditsMinorUnits: number;
+  isBalanced: boolean;
+}
+
+export interface IncomeStatementReport {
+  startDate: string;
+  endDate: string;
+  revenueAccounts: AccountReportLine[];
+  expenseAccounts: AccountReportLine[];
+  totalRevenueMinorUnits: number;
+  totalExpensesMinorUnits: number;
+  netIncomeMinorUnits: number;
+}
+
+export interface BalanceSheetReport {
+  asOfDate: string;
+  assetAccounts: AccountReportLine[];
+  liabilityAccounts: AccountReportLine[];
+  equityAccounts: AccountReportLine[];
+  totalAssetsMinorUnits: number;
+  totalLiabilitiesMinorUnits: number;
+  directEquityMinorUnits: number;
+  retainedEarningsMinorUnits: number;
+  totalEquityMinorUnits: number;
+  totalLiabilitiesAndEquityMinorUnits: number;
+  isBalanced: boolean;
+  equationDeltaMinorUnits: number;
+}
+
+export interface FiscalPeriod {
+  id: string;
+  organizationId: string;
+  fiscalYear: number;
+  periodNumber: number;
+  startDate: string;
+  endDate: string;
+  status: "OPEN" | "CLOSED" | "LOCKED";
+}
+
+export interface AuditLog {
+  id: string;
+  organizationId: string;
+  actorId?: string;
+  actorEmail?: string;
+  actorFullName?: string;
+  actorType: string;
+  correlationId: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  changes: Record<string, any>;
+  createdAt: string;
+}
+
+// Phase 5 API Functions
+export async function fetchTrialBalance(orgId: string, asOfDate?: string): Promise<TrialBalanceReport> {
+  const query = asOfDate ? `?asOfDate=${asOfDate}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/reports/trial-balance${query}`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch Trial Balance report: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchIncomeStatement(orgId: string, startDate?: string, endDate?: string): Promise<IncomeStatementReport> {
+  const params = new URLSearchParams();
+  if (startDate) params.append("startDate", startDate);
+  if (endDate) params.append("endDate", endDate);
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/reports/income-statement${query}`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch Income Statement report: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchBalanceSheet(orgId: string, asOfDate?: string): Promise<BalanceSheetReport> {
+  const query = asOfDate ? `?asOfDate=${asOfDate}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/reports/balance-sheet${query}`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch Balance Sheet report: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchFiscalPeriods(orgId: string): Promise<FiscalPeriod[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch fiscal periods: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.fiscalPeriods || [];
+}
+
+export async function generateFiscalPeriods(orgId: string, fiscalYear?: number): Promise<FiscalPeriod[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods/generate`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fiscalYear }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to generate fiscal periods: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.fiscalPeriods || [];
+}
+
+export async function closeFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/close`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to close fiscal period: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function lockFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/lock`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to lock fiscal period: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function unlockFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/unlock`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to unlock fiscal period: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchAuditLogs(orgId: string, limit: number = 100): Promise<AuditLog[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/audit-logs?limit=${limit}`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch audit logs: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.auditLogs || [];
+}

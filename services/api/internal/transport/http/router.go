@@ -11,8 +11,11 @@ import (
 
 	"github.com/NIRASHA3/finintel/services/api/internal/config"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/account"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/audit"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/closing"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/ledger"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/organization"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/reports"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/staging"
 	customMiddleware "github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
@@ -62,12 +65,18 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	accService := account.NewService(pool)
 	ledgerService := ledger.NewService(pool)
 	stagingService := staging.NewService(pool)
+	reportsService := reports.NewService(pool)
+	closingService := closing.NewService(pool)
+	auditService := audit.NewService(pool)
 
 	userHandler := NewUserHandler()
 	orgHandler := NewOrganizationHandler(orgService)
 	accHandler := NewAccountHandler(accService)
 	ledgerHandler := NewLedgerHandler(ledgerService)
 	stagingHandler := NewStagingHandler(stagingService)
+	reportsHandler := NewReportsHandler(reportsService)
+	closingHandler := NewClosingHandler(closingService)
+	auditHandler := NewAuditHandler(auditService)
 
 	// API v1 Protected Routes
 	r.Route("/api/v1", func(r chi.Router) {
@@ -102,6 +111,25 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 				r.Post("/{id}/reject", stagingHandler.RejectStagedTransaction)
 				r.Post("/batch-post", stagingHandler.BatchPostApprovedTransactions)
 			})
+
+			// Organization-scoped Financial Reports routes
+			r.Route("/{organizationId}/reports", func(r chi.Router) {
+				r.Get("/trial-balance", reportsHandler.GetTrialBalance)
+				r.Get("/income-statement", reportsHandler.GetIncomeStatement)
+				r.Get("/balance-sheet", reportsHandler.GetBalanceSheet)
+			})
+
+			// Organization-scoped Fiscal Period Closing routes
+			r.Route("/{organizationId}/fiscal-periods", func(r chi.Router) {
+				r.Get("/", closingHandler.ListFiscalPeriods)
+				r.Post("/generate", closingHandler.GenerateFiscalPeriods)
+				r.Post("/{periodId}/close", closingHandler.ClosePeriod)
+				r.Post("/{periodId}/lock", closingHandler.LockPeriod)
+				r.Post("/{periodId}/unlock", closingHandler.UnlockPeriod)
+			})
+
+			// Organization-scoped Audit Trail routes
+			r.Get("/{organizationId}/audit-logs", auditHandler.ListAuditLogs)
 		})
 	})
 

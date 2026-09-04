@@ -379,11 +379,101 @@ paths:
               schema:
                 $ref: '#/components/schemas/StagedTransactionResponse'
 
-  /api/v1/organizations/{organizationId}/staged-transactions/batch-post:
-    post:
-      summary: Batch Post Approved Transactions
-      description: Batch-posts all APPROVED staged transactions into journal entries and audit logs within a single PostgreSQL transaction block.
-      operationId: batchPostStagedTransactions
+  /api/v1/organizations/{organizationId}/reports/trial-balance:
+    get:
+      summary: Get Trial Balance Report
+      description: Generates trial balance aggregating debit and credit totals for all accounts as of target date.
+      operationId: getTrialBalance
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: asOfDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Trial balance report generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrialBalanceResponse'
+
+  /api/v1/organizations/{organizationId}/reports/income-statement:
+    get:
+      summary: Get Income Statement (P&L) Report
+      description: Generates income statement summarizing revenues, expenses, and net income within date range.
+      operationId: getIncomeStatement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Income statement report generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncomeStatementResponse'
+
+  /api/v1/organizations/{organizationId}/reports/balance-sheet:
+    get:
+      summary: Get Balance Sheet Report
+      description: Generates balance sheet report with Balance Sheet Equation Safeguard (Assets = Liabilities + Equity).
+      operationId: getBalanceSheet
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: asOfDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Balance sheet report generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceSheetResponse'
+
+  /api/v1/organizations/{organizationId}/fiscal-periods:
+    get:
+      summary: List Organization Fiscal Periods
+      description: Retrieves list of monthly fiscal periods for an organization.
+      operationId: listFiscalPeriods
       security:
         - BearerAuth: []
       parameters:
@@ -395,11 +485,150 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Approved transactions batch-posted successfully.
+          description: List of fiscal periods retrieved successfully.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BatchPostResponse'
+                $ref: '#/components/schemas/FiscalPeriodListResponse'
+
+  /api/v1/organizations/{organizationId}/fiscal-periods/generate:
+    post:
+      summary: Generate Fiscal Periods
+      description: Initializes 12 monthly fiscal periods for a target fiscal year.
+      operationId: generateFiscalPeriods
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateFiscalPeriodsRequest'
+      responses:
+        '200':
+          description: Fiscal periods generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalPeriodListResponse'
+
+  /api/v1/organizations/{organizationId}/fiscal-periods/{periodId}/close:
+    post:
+      summary: Close Fiscal Period
+      description: Closes an open fiscal period.
+      operationId: closeFiscalPeriod
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Fiscal period closed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalPeriodResponse'
+
+  /api/v1/organizations/{organizationId}/fiscal-periods/{periodId}/lock:
+    post:
+      summary: Lock Fiscal Period
+      description: Locks a closed fiscal period to protect historical integrity.
+      operationId: lockFiscalPeriod
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Fiscal period locked successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalPeriodResponse'
+
+  /api/v1/organizations/{organizationId}/fiscal-periods/{periodId}/unlock:
+    post:
+      summary: Unlock Fiscal Period
+      description: Unlocks a locked or closed fiscal period.
+      operationId: unlockFiscalPeriod
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Fiscal period unlocked successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalPeriodResponse'
+
+  /api/v1/organizations/{organizationId}/audit-logs:
+    get:
+      summary: List Audit Logs
+      description: Retrieves atomic audit log entries for organization actions.
+      operationId: listAuditLogs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Audit logs retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogListResponse'
 
 components:
   securitySchemes:
@@ -742,3 +971,232 @@ components:
           type: string
         message:
           type: string
+
+    AccountReportLine:
+      type: object
+      required:
+        - accountId
+        - accountCode
+        - accountName
+        - accountType
+        - debitAmountMinorUnits
+        - creditAmountMinorUnits
+        - netBalanceMinorUnits
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        accountCode:
+          type: string
+        accountName:
+          type: string
+        accountType:
+          type: string
+          enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]
+        debitAmountMinorUnits:
+          type: integer
+        creditAmountMinorUnits:
+          type: integer
+        netBalanceMinorUnits:
+          type: integer
+
+    TrialBalanceResponse:
+      type: object
+      required:
+        - asOfDate
+        - accounts
+        - totalDebitsMinorUnits
+        - totalCreditsMinorUnits
+        - isBalanced
+      properties:
+        asOfDate:
+          type: string
+          format: date
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountReportLine'
+        totalDebitsMinorUnits:
+          type: integer
+        totalCreditsMinorUnits:
+          type: integer
+        isBalanced:
+          type: boolean
+
+    IncomeStatementResponse:
+      type: object
+      required:
+        - startDate
+        - endDate
+        - revenueAccounts
+        - expenseAccounts
+        - totalRevenueMinorUnits
+        - totalExpensesMinorUnits
+        - netIncomeMinorUnits
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        revenueAccounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountReportLine'
+        expenseAccounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountReportLine'
+        totalRevenueMinorUnits:
+          type: integer
+        totalExpensesMinorUnits:
+          type: integer
+        netIncomeMinorUnits:
+          type: integer
+
+    BalanceSheetResponse:
+      type: object
+      required:
+        - asOfDate
+        - assetAccounts
+        - liabilityAccounts
+        - equityAccounts
+        - totalAssetsMinorUnits
+        - totalLiabilitiesMinorUnits
+        - directEquityMinorUnits
+        - retainedEarningsMinorUnits
+        - totalEquityMinorUnits
+        - totalLiabilitiesAndEquityMinorUnits
+        - isBalanced
+        - equationDeltaMinorUnits
+      properties:
+        asOfDate:
+          type: string
+          format: date
+        assetAccounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountReportLine'
+        liabilityAccounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountReportLine'
+        equityAccounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountReportLine'
+        totalAssetsMinorUnits:
+          type: integer
+        totalLiabilitiesMinorUnits:
+          type: integer
+        directEquityMinorUnits:
+          type: integer
+        retainedEarningsMinorUnits:
+          type: integer
+        totalEquityMinorUnits:
+          type: integer
+        totalLiabilitiesAndEquityMinorUnits:
+          type: integer
+        isBalanced:
+          type: boolean
+        equationDeltaMinorUnits:
+          type: integer
+
+    GenerateFiscalPeriodsRequest:
+      type: object
+      properties:
+        fiscalYear:
+          type: integer
+
+    FiscalPeriodResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - fiscalYear
+        - periodNumber
+        - startDate
+        - endDate
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        fiscalYear:
+          type: integer
+        periodNumber:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [OPEN, CLOSED, LOCKED]
+
+    FiscalPeriodListResponse:
+      type: object
+      required:
+        - fiscalPeriods
+      properties:
+        fiscalPeriods:
+          type: array
+          items:
+            $ref: '#/components/schemas/FiscalPeriodResponse'
+
+    AuditLogResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - actorType
+        - correlationId
+        - entityType
+        - entityId
+        - action
+        - changes
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        actorId:
+          type: string
+        actorEmail:
+          type: string
+        actorFullName:
+          type: string
+        actorType:
+          type: string
+        correlationId:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+        action:
+          type: string
+        changes:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    AuditLogListResponse:
+      type: object
+      required:
+        - auditLogs
+      properties:
+        auditLogs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogResponse'

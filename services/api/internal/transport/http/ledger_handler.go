@@ -43,6 +43,10 @@ func (h *LedgerHandler) PostJournalEntry(w http.ResponseWriter, r *http.Request)
 
 	entry, err := h.ledgerService.PostJournalEntry(r.Context(), orgID, u.ID, correlationID, req)
 	if err != nil {
+		if errors.Is(err, ledger.ErrFiscalPeriodLocked) {
+			writeJSONError(w, http.StatusForbidden, "FISCAL_PERIOD_LOCKED", err.Error())
+			return
+		}
 		if errors.Is(err, ledger.ErrUnbalancedJournalEntry) {
 			writeJSONError(w, http.StatusBadRequest, "UNBALANCED_JOURNAL_ENTRY", err.Error())
 			return
