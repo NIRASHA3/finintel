@@ -46,16 +46,20 @@ export function JournalLedgerView({ organizationId }: Props) {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+
   const loadData = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
     setError(null);
     try {
-      const [eData, aData] = await Promise.all([
+      const [eRes, aData] = await Promise.all([
         fetchJournalEntries(organizationId),
         fetchAccounts(organizationId),
       ]);
-      setEntries(eData);
+      setEntries(eRes.entries);
+      setNextCursor(eRes.nextCursor || null);
       setAccounts(aData);
     } catch (err: any) {
       setError(err.message || "Failed to load General Ledger entries");
@@ -63,6 +67,20 @@ export function JournalLedgerView({ organizationId }: Props) {
       setLoading(false);
     }
   }, [organizationId]);
+
+  const handleLoadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetchJournalEntries(organizationId, nextCursor);
+      setEntries((prev) => [...prev, ...res.entries]);
+      setNextCursor(res.nextCursor || null);
+    } catch (err: any) {
+      setError(err.message || "Failed to load additional journal entries");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -298,6 +316,17 @@ export function JournalLedgerView({ organizationId }: Props) {
               </table>
             </div>
           ))}
+          {nextCursor && (
+            <div className="text-center pt-2">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="rounded-xl border border-slate-300 bg-white px-6 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                {loadingMore ? "Loading More..." : "Load More Entries"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

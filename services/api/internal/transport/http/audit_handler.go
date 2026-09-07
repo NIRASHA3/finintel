@@ -24,6 +24,7 @@ func (h *AuditHandler) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cursor := r.URL.Query().Get("cursor")
 	limit := 100
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
@@ -31,7 +32,7 @@ func (h *AuditHandler) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	logs, err := h.service.ListAuditLogs(r.Context(), orgID, limit)
+	logs, nextCursor, err := h.service.ListAuditLogs(r.Context(), orgID, cursor, limit)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -41,5 +42,13 @@ func (h *AuditHandler) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"auditLogs": logs})
+	response := map[string]interface{}{
+		"auditLogs": logs,
+	}
+	if nextCursor != "" {
+		response["next_cursor"] = nextCursor
+	} else {
+		response["next_cursor"] = nil
+	}
+	_ = json.NewEncoder(w).Encode(response)
 }

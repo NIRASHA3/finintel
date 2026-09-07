@@ -14,17 +14,35 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ organization }) 
   const [actionFilter, setActionFilter] = useState<string>("ALL");
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+
   const loadLogs = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAuditLogs(organization.id, 100);
-      setLogs(data);
+      const res = await fetchAuditLogs(organization.id, 100);
+      setLogs(res.auditLogs);
+      setNextCursor(res.nextCursor || null);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to load audit logs");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetchAuditLogs(organization.id, 100, nextCursor);
+      setLogs((prev) => [...prev, ...res.auditLogs]);
+      setNextCursor(res.nextCursor || null);
+    } catch (err: any) {
+      setError(err.message || "Failed to load additional audit logs");
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -152,6 +170,17 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ organization }) 
               })}
             </tbody>
           </table>
+          {nextCursor && (
+            <div className="p-4 text-center border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-6 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 rounded-xl border border-slate-300 shadow-xs transition disabled:opacity-50"
+              >
+                {loadingMore ? "Loading More..." : "Load More Audit Logs"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

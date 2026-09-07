@@ -206,8 +206,22 @@ export async function createAccount(orgId: string, params: CreateAccountParams):
   return res.json();
 }
 
-export async function fetchJournalEntries(orgId: string): Promise<JournalEntry[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/journal-entries`, {
+export interface JournalEntriesResponse {
+  entries: JournalEntry[];
+  nextCursor?: string | null;
+}
+
+export async function fetchJournalEntries(
+  orgId: string,
+  cursor?: string,
+  limit: number = 50
+): Promise<JournalEntriesResponse> {
+  const params = new URLSearchParams();
+  if (cursor) params.append("cursor", cursor);
+  if (limit) params.append("limit", limit.toString());
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/journal-entries${query}`, {
     headers: {
       Authorization: "Bearer dev-token-admin@finintel.io",
       "Content-Type": "application/json",
@@ -220,7 +234,10 @@ export async function fetchJournalEntries(orgId: string): Promise<JournalEntry[]
   }
 
   const data = await res.json();
-  return data.entries || [];
+  return {
+    entries: data.entries || [],
+    nextCursor: data.next_cursor || null,
+  };
 }
 
 export async function postJournalEntry(orgId: string, params: PostJournalEntryParams): Promise<JournalEntry> {
@@ -552,8 +569,22 @@ export async function unlockFiscalPeriod(orgId: string, periodId: string): Promi
   return res.json();
 }
 
-export async function fetchAuditLogs(orgId: string, limit: number = 100): Promise<AuditLog[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/audit-logs?limit=${limit}`, {
+export interface AuditLogsResponse {
+  auditLogs: AuditLog[];
+  nextCursor?: string | null;
+}
+
+export async function fetchAuditLogs(
+  orgId: string,
+  limit: number = 100,
+  cursor?: string
+): Promise<AuditLogsResponse> {
+  const params = new URLSearchParams();
+  if (limit) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/audit-logs${query}`, {
     headers: {
       Authorization: "Bearer dev-token-admin@finintel.io",
       "Content-Type": "application/json",
@@ -566,7 +597,10 @@ export async function fetchAuditLogs(orgId: string, limit: number = 100): Promis
   }
 
   const data = await res.json();
-  return data.auditLogs || [];
+  return {
+    auditLogs: data.auditLogs || [],
+    nextCursor: data.next_cursor || null,
+  };
 }
 
 // Phase 6 Interfaces & API Functions

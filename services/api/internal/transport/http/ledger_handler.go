@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
@@ -82,7 +83,15 @@ func (h *LedgerHandler) ListJournalEntries(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	entries, err := h.ledgerService.ListJournalEntries(r.Context(), orgID)
+	cursor := r.URL.Query().Get("cursor")
+	limit := 50
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	entries, nextCursor, err := h.ledgerService.ListJournalEntries(r.Context(), orgID, cursor, limit)
 	if err != nil {
 		slog.Error("failed to list journal entries", slog.String("organization_id", orgID), slog.Any("error", err))
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to list journal entries")
@@ -91,9 +100,15 @@ func (h *LedgerHandler) ListJournalEntries(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+	response := map[string]interface{}{
 		"entries": entries,
-	})
+	}
+	if nextCursor != "" {
+		response["next_cursor"] = nextCursor
+	} else {
+		response["next_cursor"] = nil
+	}
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *LedgerHandler) GetJournalEntry(w http.ResponseWriter, r *http.Request) {

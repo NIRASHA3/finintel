@@ -9,7 +9,7 @@ func TestAuditServiceNilDB(t *testing.T) {
 	service := NewService(nil)
 	ctx := context.Background()
 
-	_, err := service.ListAuditLogs(ctx, "test-org", 100)
+	_, _, err := service.ListAuditLogs(ctx, "test-org", "", 100)
 	if err != ErrDatabaseUnavailable {
 		t.Errorf("expected ErrDatabaseUnavailable, got %v", err)
 	}

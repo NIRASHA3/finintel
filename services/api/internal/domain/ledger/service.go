@@ -2,6 +2,7 @@ package ledger
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -217,20 +218,66 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 	return &entry, nil
 }
 
-func (s *Service) ListJournalEntries(ctx context.Context, orgID string) ([]JournalEntry, error) {
+func EncodeCursor(t time.Time, id string) string {
+	str := fmt.Sprintf("%s|%s", t.Format(time.RFC3339Nano), id)
+	return base64.URLEncoding.EncodeToString([]byte(str))
+}
+
+func DecodeCursor(cursor string) (time.Time, string, error) {
+	data, err := base64.URLEncoding.DecodeString(cursor)
+	if err != nil {
+		return time.Time{}, "", fmt.Errorf("invalid base64 cursor: %w", err)
+	}
+	parts := strings.SplitN(string(data), "|", 2)
+	if len(parts) != 2 {
+		return time.Time{}, "", fmt.Errorf("invalid cursor format")
+	}
+	t, err := time.Parse(time.RFC3339Nano, parts[0])
+	if err != nil {
+		return time.Time{}, "", fmt.Errorf("invalid cursor timestamp: %w", err)
+	}
+	return t, parts[1], nil
+}
+
+func (s *Service) ListJournalEntries(ctx context.Context, orgID string, cursor string, limit int) ([]JournalEntry, string, error) {
 	if s.db == nil {
-		return nil, ErrDatabaseUnavailable
+		return nil, "", ErrDatabaseUnavailable
 	}
 
-	entriesQuery := `
-		SELECT id, organization_id, entry_number, transaction_date::text, description, status, COALESCE(reversed_by_entry_id::text, ''), COALESCE(posted_by_user_id::text, ''), created_at
-		FROM journal_entries
-		WHERE organization_id = $1
-		ORDER BY entry_number DESC;
-	`
-	rows, err := s.db.Query(ctx, entriesQuery, orgID)
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+
+	var rows pgx.Rows
+	var err error
+
+	if strings.TrimSpace(cursor) != "" {
+		cursorTime, cursorID, errDecode := DecodeCursor(cursor)
+		if errDecode != nil {
+			return nil, "", fmt.Errorf("bad cursor: %w", errDecode)
+		}
+
+		entriesQuery := `
+			SELECT id, organization_id, entry_number, transaction_date::text, description, status, COALESCE(reversed_by_entry_id::text, ''), COALESCE(posted_by_user_id::text, ''), created_at
+			FROM journal_entries
+			WHERE organization_id = $1 AND (created_at < $2 OR (created_at = $2 AND id < $3))
+			ORDER BY created_at DESC, id DESC
+			LIMIT $4;
+		`
+		rows, err = s.db.Query(ctx, entriesQuery, orgID, cursorTime, cursorID, limit+1)
+	} else {
+		entriesQuery := `
+			SELECT id, organization_id, entry_number, transaction_date::text, description, status, COALESCE(reversed_by_entry_id::text, ''), COALESCE(posted_by_user_id::text, ''), created_at
+			FROM journal_entries
+			WHERE organization_id = $1
+			ORDER BY created_at DESC, id DESC
+			LIMIT $2;
+		`
+		rows, err = s.db.Query(ctx, entriesQuery, orgID, limit+1)
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to query journal entries: %w", err)
+		return nil, "", fmt.Errorf("failed to query journal entries: %w", err)
 	}
 	defer rows.Close()
 
@@ -238,10 +285,9 @@ func (s *Service) ListJournalEntries(ctx context.Context, orgID string) ([]Journ
 	for rows.Next() {
 		var e JournalEntry
 		if err := rows.Scan(&e.ID, &e.OrganizationID, &e.EntryNumber, &e.TransactionDate, &e.Description, &e.Status, &e.ReversedByEntryID, &e.PostedByUserID, &e.CreatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan journal entry row: %w", err)
+			return nil, "", fmt.Errorf("failed to scan journal entry row: %w", err)
 		}
 
-		// Fetch entry lines for each entry
 		linesQuery := `
 			SELECT jel.id, jel.organization_id, jel.journal_entry_id, jel.account_id, a.account_code, a.name, jel.debit_amount_minor_units, jel.credit_amount_minor_units, COALESCE(jel.memo, '')
 			FROM journal_entry_lines jel
@@ -269,7 +315,13 @@ func (s *Service) ListJournalEntries(ctx context.Context, orgID string) ([]Journ
 		entries = []JournalEntry{}
 	}
 
-	return entries, nil
+	nextCursor := ""
+	if len(entries) > limit {
+		nextCursor = EncodeCursor(entries[limit-1].CreatedAt, entries[limit-1].ID)
+		entries = entries[:limit]
+	}
+
+	return entries, nextCursor, nil
 }
 
 func (s *Service) GetJournalEntryByID(ctx context.Context, orgID string, entryID string) (*JournalEntry, error) {

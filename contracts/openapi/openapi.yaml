@@ -199,6 +199,16 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         '200':
           description: List of journal entries.
@@ -622,9 +632,18 @@ paths:
           required: false
           schema:
             type: integer
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: Audit logs retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogListResponse'
   /api/v1/organizations/{organizationId}/journal-entries/{entryId}/reverse:
     post:
       summary: Reverse Journal Entry
@@ -1089,6 +1108,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/JournalEntryResponse'
+        next_cursor:
+          type: [string, "null"]
     StagedTransactionResponse:
       type: object
       required:
@@ -1408,6 +1429,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditLogResponse'
+        next_cursor:
+          type: [string, "null"]
 
     AnomalyResponse:
       type: object

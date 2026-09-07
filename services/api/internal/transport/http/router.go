@@ -51,7 +51,8 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 	r.Use(customMiddleware.CORS(allowedOrigins))
-	r.Use(SlogLoggerMiddleware(logger))
+	r.Use(customMiddleware.SlogLogger(logger))
+	r.Use(customMiddleware.RateLimit(100, 200))
 	r.Use(customMiddleware.RBACContextMiddleware)
 	r.Use(middleware.Timeout(60 * time.Second))
 
@@ -204,23 +205,5 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 }
 
 func SlogLoggerMiddleware(logger *slog.Logger) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-			t1 := time.Now()
-
-			defer func() {
-				logger.Info("http_request",
-					slog.String("request_id", middleware.GetReqID(r.Context())),
-					slog.String("method", r.Method),
-					slog.String("path", r.URL.Path),
-					slog.Int("status", ww.Status()),
-					slog.Int("bytes", ww.BytesWritten()),
-					slog.Duration("latency", time.Since(t1)),
-				)
-			}()
-
-			next.ServeHTTP(ww, r)
-		})
-	}
+	return customMiddleware.SlogLogger(logger)
 }
