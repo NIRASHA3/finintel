@@ -16,11 +16,14 @@ import (
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/closing"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/dashboard"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/export"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/fx"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/ledger"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/organization"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/reconciliation"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/reports"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/reversal"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/staging"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/webhook"
 	customMiddleware "github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
@@ -49,6 +52,7 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	r.Use(middleware.Recoverer)
 	r.Use(customMiddleware.CORS(allowedOrigins))
 	r.Use(SlogLoggerMiddleware(logger))
+	r.Use(customMiddleware.RBACContextMiddleware)
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	healthHandler := NewHealthHandler(db)
@@ -76,6 +80,9 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	anomalyService := anomaly.NewService(pool)
 	dashboardService := dashboard.NewService(pool)
 	exportService := export.NewService(pool)
+	recService := reconciliation.NewService(pool)
+	webhookService := webhook.NewService(pool)
+	fxService := fx.NewService(pool)
 
 	userHandler := NewUserHandler()
 	orgHandler := NewOrganizationHandler(orgService)
@@ -89,6 +96,10 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	anomalyHandler := NewAnomalyHandler(anomalyService)
 	dashboardHandler := NewDashboardHandler(dashboardService)
 	exportHandler := NewExportHandler(exportService)
+	recHandler := NewReconciliationHandler(recService)
+	webhookHandler := NewWebhookHandler(webhookService)
+	fxHandler := NewFXHandler(fxService)
+	memberHandler := NewMemberHandler()
 
 	// API v1 Protected Routes
 	r.Route("/api/v1", func(r chi.Router) {
@@ -96,9 +107,32 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 
 		r.Get("/users/me", userHandler.GetCurrentUser)
 
+		// Bank Reconciliation routes
+		r.Post("/reconciliations/match", recHandler.AutoMatch)
+
+		// Webhook routes
+		r.Route("/webhooks/subscriptions", func(r chi.Router) {
+			r.Get("/", webhookHandler.ListSubscriptions)
+			r.Post("/", webhookHandler.CreateSubscription)
+			r.Delete("/{id}", webhookHandler.DeleteSubscription)
+		})
+
+		// Foreign Exchange Rate & Revaluation routes
+		r.Route("/fx-rates", func(r chi.Router) {
+			r.Get("/", fxHandler.ListRates)
+			r.Post("/", fxHandler.UpsertRate)
+			r.Post("/revalue", fxHandler.Revalue)
+		})
+
 		r.Route("/organizations", func(r chi.Router) {
 			r.Post("/", orgHandler.CreateOrganization)
 			r.Get("/", orgHandler.ListOrganizations)
+
+			// Organization Members / Roles routes
+			r.Route("/{id}/members", func(r chi.Router) {
+				r.Get("/", memberHandler.ListMembers)
+				r.Put("/{memberId}/role", memberHandler.UpdateMemberRole)
+			})
 
 			// Organization-scoped Account routes
 			r.Route("/{organizationId}/accounts", func(r chi.Router) {

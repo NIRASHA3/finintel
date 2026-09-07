@@ -57,6 +57,30 @@ func TestRouter_Phase6RoutesRegistration(t *testing.T) {
 			path:           "/api/v1/organizations/00000000-0000-0000-0000-000000000001",
 			expectedNot404: true,
 		},
+		{
+			name:           "Reconciliation AutoMatch Endpoint",
+			method:         "POST",
+			path:           "/api/v1/reconciliations/match",
+			expectedNot404: true,
+		},
+		{
+			name:           "Webhook Subscriptions List Endpoint",
+			method:         "GET",
+			path:           "/api/v1/webhooks/subscriptions",
+			expectedNot404: true,
+		},
+		{
+			name:           "FX Rates List Endpoint",
+			method:         "GET",
+			path:           "/api/v1/fx-rates",
+			expectedNot404: true,
+		},
+		{
+			name:           "Organization Members List Endpoint",
+			method:         "GET",
+			path:           "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members",
+			expectedNot404: true,
+		},
 	}
 
 	for _, tc := range testCases {

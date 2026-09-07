@@ -747,10 +747,96 @@ paths:
       responses:
         '200':
           description: CSV file generated successfully.
-          content:
-            text/csv:
-              schema:
-                type: string
+  /api/v1/reconciliations/match:
+    post:
+      summary: Auto-match Bank Transactions
+      description: Performs rules-based auto-matching of imported bank statement lines against posted journal entries.
+      operationId: autoMatchBankTransactions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transactions:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Matching executed successfully.
+
+  /api/v1/webhooks/subscriptions:
+    get:
+      summary: List Webhook Subscriptions
+      description: Retrieves active webhook subscriptions for event delivery.
+      operationId: listWebhookSubscriptions
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of subscriptions.
+    post:
+      summary: Create Webhook Subscription
+      description: Registers a target URL and event filters for HMAC-signed webhook notifications.
+      operationId: createWebhookSubscription
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Webhook subscription created.
+
+  /api/v1/fx-rates:
+    get:
+      summary: List FX Exchange Rates
+      description: Retrieves configured exchange rates for tenant currency pairs.
+      operationId: listFxRates
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of exchange rates.
+    post:
+      summary: Upsert FX Exchange Rate
+      description: Configures exchange rate for currency pair.
+      operationId: upsertFxRate
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Rate saved successfully.
+
+  /api/v1/fx-rates/revalue:
+    post:
+      summary: Period-End FX Revaluation
+      description: Calculates unrealized foreign exchange gain/loss for foreign currency balances.
+      operationId: revalueFx
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Revaluation completed.
+
+  /api/v1/organizations/{organizationId}/members:
+    get:
+      summary: List Organization Members & RBAC Roles
+      description: Retrieves members and assigned roles (Admin, Controller, Accountant, Auditor).
+      operationId: listOrganizationMembers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization members list.
 
 components:
   securitySchemes:

@@ -16,6 +16,9 @@ import { FiscalPeriodsView } from "./FiscalPeriodsView";
 import { AuditTrailView } from "./AuditTrailView";
 import { DashboardOverviewView } from "./DashboardOverviewView";
 import { AnomalyReviewView } from "./AnomalyReviewView";
+import { ReconciliationView } from "./ReconciliationView";
+import { WebhooksView } from "./WebhooksView";
+import { FxRevaluationView } from "./FxRevaluationView";
 
 export function OrganizationManager() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -24,7 +27,9 @@ export function OrganizationManager() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "anomalies" | "overview" | "coa" | "ledger" | "staging" | "reports" | "periods" | "audit">("dashboard");
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "anomalies" | "reconciliation" | "webhooks" | "fx" | "overview" | "coa" | "ledger" | "staging" | "reports" | "periods" | "audit"
+  >("dashboard");
 
   // Form state
   const [newOrgName, setNewOrgName] = useState<string>("");
@@ -264,6 +269,36 @@ export function OrganizationManager() {
               Audit Trail
             </button>
             <button
+              onClick={() => setActiveTab("reconciliation")}
+              className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap ${
+                activeTab === "reconciliation"
+                  ? "bg-white text-teal-700 shadow-xs border border-teal-200"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50"
+              }`}
+            >
+              Bank Reconciliation
+            </button>
+            <button
+              onClick={() => setActiveTab("webhooks")}
+              className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap ${
+                activeTab === "webhooks"
+                  ? "bg-white text-teal-700 shadow-xs border border-teal-200"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50"
+              }`}
+            >
+              Webhook Engine
+            </button>
+            <button
+              onClick={() => setActiveTab("fx")}
+              className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap ${
+                activeTab === "fx"
+                  ? "bg-white text-teal-700 shadow-xs border border-teal-200"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50"
+              }`}
+            >
+              FX Revaluation
+            </button>
+            <button
               onClick={() => setActiveTab("overview")}
               className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap ${
                 activeTab === "overview"
@@ -278,6 +313,9 @@ export function OrganizationManager() {
           {/* Subviews */}
           {activeTab === "dashboard" && <DashboardOverviewView organizationId={activeOrg.id} />}
           {activeTab === "anomalies" && <AnomalyReviewView organizationId={activeOrg.id} />}
+          {activeTab === "reconciliation" && <ReconciliationView organizationId={activeOrg.id} />}
+          {activeTab === "webhooks" && <WebhooksView organizationId={activeOrg.id} />}
+          {activeTab === "fx" && <FxRevaluationView organizationId={activeOrg.id} />}
           {activeTab === "coa" && <ChartOfAccountsView organizationId={activeOrg.id} />}
           {activeTab === "ledger" && <JournalLedgerView organizationId={activeOrg.id} />}
           {activeTab === "staging" && <StagedTransactionsView organizationId={activeOrg.id} />}

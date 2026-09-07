@@ -694,3 +694,213 @@ export async function downloadAuditLogsCSV(orgId: string): Promise<void> {
   a.remove();
 }
 
+// Phase 7 Interfaces & API Functions
+export interface ReconciliationMatch {
+  id: string;
+  bankTransactionId: string;
+  bankDate: string;
+  bankAmountMinorUnits: number;
+  bankReference: string;
+  matchedEntry?: {
+    entryId: string;
+    entryNumber: number;
+    transactionDate: string;
+    description: string;
+    amountMinorUnits: number;
+  };
+  confidenceScore: number;
+  matchStatus: "EXACT_MATCH" | "HIGH_CONFIDENCE" | "SUGGESTED" | "UNMATCHED" | "MANUALLY_MATCHED";
+  discrepancyReason?: string;
+}
+
+export interface WebhookSubscription {
+  id: string;
+  organization_id: string;
+  target_url: string;
+  secret_token: string;
+  events: string[];
+  active: boolean;
+  created_at: string;
+}
+
+export interface FxRate {
+  id: string;
+  organization_id: string;
+  base_currency: string;
+  target_currency: string;
+  rate: number;
+  effective_date: string;
+  updated_at: string;
+}
+
+export interface FxRevaluationResult {
+  id: string;
+  organization_id: string;
+  revaluation_date: string;
+  base_currency: string;
+  foreign_currency: string;
+  original_foreign_amount: number;
+  booked_base_amount: number;
+  current_rate: number;
+  revalued_base_amount: number;
+  unrealized_gain_loss: number;
+  status: string;
+  journal_entry_id?: string;
+  created_at: string;
+}
+
+export interface OrgMember {
+  id: string;
+  user_id: string;
+  email: string;
+  name: string;
+  role: "Admin" | "Controller" | "Accountant" | "Auditor";
+  status: string;
+  created_at: string;
+}
+
+export async function autoMatchReconciliation(orgId: string, transactions: any[]): Promise<ReconciliationMatch[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/reconciliations/match`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "X-Organization-ID": orgId,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ transactions }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to run auto-match reconciliation: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.matches || [];
+}
+
+export async function fetchWebhookSubscriptions(orgId: string): Promise<WebhookSubscription[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/webhooks/subscriptions`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "X-Organization-ID": orgId,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch webhook subscriptions: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.subscriptions || [];
+}
+
+export async function createWebhookSubscription(orgId: string, targetUrl: string, events: string[]): Promise<WebhookSubscription> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/webhooks/subscriptions`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "X-Organization-ID": orgId,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ target_url: targetUrl, events }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to create webhook subscription: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteWebhookSubscription(orgId: string, id: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/webhooks/subscriptions/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "X-Organization-ID": orgId,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to delete webhook subscription: HTTP ${res.status}`);
+  }
+}
+
+export async function fetchFxRates(orgId: string): Promise<FxRate[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/fx-rates`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "X-Organization-ID": orgId,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch FX exchange rates: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.rates || [];
+}
+
+export async function upsertFxRate(orgId: string, baseCurrency: string, targetCurrency: string, rate: number, effectiveDate?: string): Promise<FxRate> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/fx-rates`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "X-Organization-ID": orgId,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ base_currency: baseCurrency, target_currency: targetCurrency, rate, effective_date: effectiveDate }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to save exchange rate: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function runFxRevaluation(orgId: string, baseCurrency: string, foreignCurrency: string, foreignAmount: number): Promise<FxRevaluationResult> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/fx-rates/revalue`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "X-Organization-ID": orgId,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ base_currency: baseCurrency, foreign_currency: foreignCurrency, foreign_amount: foreignAmount }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to run FX revaluation: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchOrganizationMembers(orgId: string): Promise<OrgMember[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/members`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch organization members: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.members || [];
+}
+
+
