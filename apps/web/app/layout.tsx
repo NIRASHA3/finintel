@@ -4,7 +4,7 @@ import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 
 export const metadata: Metadata = {
-  title: "FinIntel - Multi-Tenant Financial Operations Platform",
+  title: "FinIntel",
   description: "Production-oriented multi-tenant financial operations platform.",
   icons: {
     icon: "/favicon.png",
