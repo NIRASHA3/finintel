@@ -5,7 +5,12 @@ import { Footer } from "./components/Footer";
 
 export const metadata: Metadata = {
   title: "FinIntel - Multi-Tenant Financial Operations Platform",
-  description: "Production-oriented multi-tenant financial operations SaaS.",
+  description: "Production-oriented multi-tenant financial operations platform.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

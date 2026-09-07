@@ -63,6 +63,7 @@ export interface JournalEntry {
   transactionDate: string;
   description: string;
   status: string;
+  reversedByEntryId?: string;
   postedByUserId?: string;
   createdAt: string;
   lines: JournalEntryLine[];
@@ -567,3 +568,129 @@ export async function fetchAuditLogs(orgId: string, limit: number = 100): Promis
   const data = await res.json();
   return data.auditLogs || [];
 }
+
+// Phase 6 Interfaces & API Functions
+export interface Anomaly {
+  id: string;
+  type: "DUPLICATE_REFERENCE" | "OUTLIER_AMOUNT" | "UNMAPPED_PAYEE";
+  severity: "HIGH" | "MEDIUM" | "LOW";
+  title: string;
+  description: string;
+  confidenceScore: number;
+  suggestedAction: string;
+  createdAt: string;
+  relatedEntityId?: string;
+}
+
+export interface ExpenseCategoryBreakdown {
+  accountCode: string;
+  accountName: string;
+  amountMinor: number;
+  percentage: number;
+}
+
+export interface DashboardMetrics {
+  organizationId: string;
+  workingCapitalMinorUnits: number;
+  cashPositionMinorUnits: number;
+  monthlyBurnRateMinorUnits: number;
+  runwayMonths: number;
+  ytdRevenueMinorUnits: number;
+  ytdExpenseMinorUnits: number;
+  netIncomeMinorUnits: number;
+  expenseBreakdown: ExpenseCategoryBreakdown[];
+}
+
+export async function postJournalEntryReversal(orgId: string, entryId: string, reason: string): Promise<JournalEntry> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/journal-entries/${entryId}/reverse`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ reason }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.message || `Failed to post entry reversal: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchAnomalies(orgId: string): Promise<Anomaly[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/anomalies`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch anomalies: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.anomalies || [];
+}
+
+export async function fetchDashboardMetrics(orgId: string): Promise<DashboardMetrics> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/dashboard/metrics`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch executive dashboard metrics: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function downloadLedgerCSV(orgId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/export/ledger`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to export ledger CSV: HTTP ${res.status}`);
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `finintel_ledger_${orgId.slice(0, 8)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+export async function downloadAuditLogsCSV(orgId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/export/audit`, {
+    headers: {
+      Authorization: "Bearer dev-token-admin@finintel.io",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to export audit logs CSV: HTTP ${res.status}`);
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `finintel_audit_logs_${orgId.slice(0, 8)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+

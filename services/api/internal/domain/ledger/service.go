@@ -49,15 +49,16 @@ type JournalEntryLine struct {
 }
 
 type JournalEntry struct {
-	ID              string             `json:"id"`
-	OrganizationID  string             `json:"organizationId"`
-	EntryNumber     int64              `json:"entryNumber"`
-	TransactionDate string             `json:"transactionDate"`
-	Description     string             `json:"description"`
-	Status          string             `json:"status"` // POSTED
-	PostedByUserID  string             `json:"postedByUserId,omitempty"`
-	CreatedAt       time.Time          `json:"createdAt"`
-	Lines           []JournalEntryLine `json:"lines"`
+	ID                string             `json:"id"`
+	OrganizationID    string             `json:"organizationId"`
+	EntryNumber       int64              `json:"entryNumber"`
+	TransactionDate   string             `json:"transactionDate"`
+	Description       string             `json:"description"`
+	Status            string             `json:"status"` // POSTED
+	ReversedByEntryID string             `json:"reversedByEntryId,omitempty"`
+	PostedByUserID    string             `json:"postedByUserId,omitempty"`
+	CreatedAt         time.Time          `json:"createdAt"`
+	Lines             []JournalEntryLine `json:"lines"`
 }
 
 type Service struct {
@@ -222,7 +223,7 @@ func (s *Service) ListJournalEntries(ctx context.Context, orgID string) ([]Journ
 	}
 
 	entriesQuery := `
-		SELECT id, organization_id, entry_number, transaction_date::text, description, status, COALESCE(posted_by_user_id::text, ''), created_at
+		SELECT id, organization_id, entry_number, transaction_date::text, description, status, COALESCE(reversed_by_entry_id::text, ''), COALESCE(posted_by_user_id::text, ''), created_at
 		FROM journal_entries
 		WHERE organization_id = $1
 		ORDER BY entry_number DESC;
@@ -236,7 +237,7 @@ func (s *Service) ListJournalEntries(ctx context.Context, orgID string) ([]Journ
 	var entries []JournalEntry
 	for rows.Next() {
 		var e JournalEntry
-		if err := rows.Scan(&e.ID, &e.OrganizationID, &e.EntryNumber, &e.TransactionDate, &e.Description, &e.Status, &e.PostedByUserID, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.OrganizationID, &e.EntryNumber, &e.TransactionDate, &e.Description, &e.Status, &e.ReversedByEntryID, &e.PostedByUserID, &e.CreatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan journal entry row: %w", err)
 		}
 
@@ -277,12 +278,12 @@ func (s *Service) GetJournalEntryByID(ctx context.Context, orgID string, entryID
 	}
 
 	query := `
-		SELECT id, organization_id, entry_number, transaction_date::text, description, status, COALESCE(posted_by_user_id::text, ''), created_at
+		SELECT id, organization_id, entry_number, transaction_date::text, description, status, COALESCE(reversed_by_entry_id::text, ''), COALESCE(posted_by_user_id::text, ''), created_at
 		FROM journal_entries
 		WHERE organization_id = $1 AND id = $2;
 	`
 	var e JournalEntry
-	err := s.db.QueryRow(ctx, query, orgID, entryID).Scan(&e.ID, &e.OrganizationID, &e.EntryNumber, &e.TransactionDate, &e.Description, &e.Status, &e.PostedByUserID, &e.CreatedAt)
+	err := s.db.QueryRow(ctx, query, orgID, entryID).Scan(&e.ID, &e.OrganizationID, &e.EntryNumber, &e.TransactionDate, &e.Description, &e.Status, &e.ReversedByEntryID, &e.PostedByUserID, &e.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("journal entry not found")

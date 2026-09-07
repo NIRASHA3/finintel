@@ -625,10 +625,132 @@ paths:
       responses:
         '200':
           description: Audit logs retrieved successfully.
+  /api/v1/organizations/{organizationId}/journal-entries/{entryId}/reverse:
+    post:
+      summary: Reverse Journal Entry
+      description: Posts a linked reversal entry with inverted debit and credit minor units.
+      operationId: postJournalEntryReversal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+      responses:
+        '201':
+          description: Reversal entry posted successfully.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuditLogListResponse'
+                $ref: '#/components/schemas/JournalEntryResponse'
+
+  /api/v1/organizations/{organizationId}/anomalies:
+    get:
+      summary: List Detected Accounting Anomalies
+      description: Scans journal entries and staged transactions for duplicates, outliers, and unmapped payees.
+      operationId: listAnomalies
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of anomalies retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnomalyListResponse'
+
+  /api/v1/organizations/{organizationId}/dashboard/metrics:
+    get:
+      summary: Get Executive Dashboard Metrics
+      description: Computes Working Capital, Cash Position, Burn Rate, Cash Runway, and Expense breakdown.
+      operationId: getDashboardMetrics
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dashboard metrics retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardMetricsResponse'
+
+  /api/v1/organizations/{organizationId}/export/ledger:
+    get:
+      summary: Export General Ledger as CSV
+      description: Streams complete General Ledger entries and lines in CSV format.
+      operationId: exportGeneralLedgerCSV
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: CSV file generated successfully.
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /api/v1/organizations/{organizationId}/export/audit:
+    get:
+      summary: Export Audit Trail as CSV
+      description: Streams organization audit logs in CSV format.
+      operationId: exportAuditLogsCSV
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: CSV file generated successfully.
+          content:
+            text/csv:
+              schema:
+                type: string
 
 components:
   securitySchemes:
@@ -1200,3 +1322,103 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditLogResponse'
+
+    AnomalyResponse:
+      type: object
+      required:
+        - id
+        - type
+        - severity
+        - title
+        - description
+        - confidenceScore
+        - suggestedAction
+        - createdAt
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [DUPLICATE_REFERENCE, OUTLIER_AMOUNT, UNMAPPED_PAYEE]
+        severity:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        title:
+          type: string
+        description:
+          type: string
+        confidenceScore:
+          type: number
+        suggestedAction:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        relatedEntityId:
+          type: string
+
+    AnomalyListResponse:
+      type: object
+      required:
+        - anomalies
+        - total
+      properties:
+        anomalies:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnomalyResponse'
+        total:
+          type: integer
+
+    ExpenseCategoryBreakdown:
+      type: object
+      required:
+        - accountCode
+        - accountName
+        - amountMinor
+        - percentage
+      properties:
+        accountCode:
+          type: string
+        accountName:
+          type: string
+        amountMinor:
+          type: integer
+        percentage:
+          type: number
+
+    DashboardMetricsResponse:
+      type: object
+      required:
+        - organizationId
+        - workingCapitalMinorUnits
+        - cashPositionMinorUnits
+        - monthlyBurnRateMinorUnits
+        - runwayMonths
+        - ytdRevenueMinorUnits
+        - ytdExpenseMinorUnits
+        - netIncomeMinorUnits
+        - expenseBreakdown
+      properties:
+        organizationId:
+          type: string
+          format: uuid
+        workingCapitalMinorUnits:
+          type: integer
+        cashPositionMinorUnits:
+          type: integer
+        monthlyBurnRateMinorUnits:
+          type: integer
+        runwayMonths:
+          type: number
+        ytdRevenueMinorUnits:
+          type: integer
+        ytdExpenseMinorUnits:
+          type: integer
+        netIncomeMinorUnits:
+          type: integer
+        expenseBreakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpenseCategoryBreakdown'
+

@@ -14,6 +14,8 @@ import { StagedTransactionsView } from "./StagedTransactionsView";
 import { FinancialReportsView } from "./FinancialReportsView";
 import { FiscalPeriodsView } from "./FiscalPeriodsView";
 import { AuditTrailView } from "./AuditTrailView";
+import { DashboardOverviewView } from "./DashboardOverviewView";
+import { AnomalyReviewView } from "./AnomalyReviewView";
 
 export function OrganizationManager() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -22,7 +24,7 @@ export function OrganizationManager() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "coa" | "ledger" | "staging" | "reports" | "periods" | "audit">("overview");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "anomalies" | "overview" | "coa" | "ledger" | "staging" | "reports" | "periods" | "audit">("dashboard");
 
   // Form state
   const [newOrgName, setNewOrgName] = useState<string>("");
@@ -182,14 +184,24 @@ export function OrganizationManager() {
         <div className="space-y-6">
           <div className="flex overflow-x-auto p-1.5 bg-slate-200/60 rounded-2xl border border-slate-200/80 gap-1.5 text-xs font-bold">
             <button
-              onClick={() => setActiveTab("overview")}
+              onClick={() => setActiveTab("dashboard")}
               className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap ${
-                activeTab === "overview"
-                  ? "bg-white text-slate-900 shadow-xs border border-slate-200"
+                activeTab === "dashboard"
+                  ? "bg-white text-emerald-700 shadow-xs border border-emerald-200"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50"
               }`}
             >
-              Overview
+              Executive Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab("anomalies")}
+              className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap ${
+                activeTab === "anomalies"
+                  ? "bg-white text-emerald-700 shadow-xs border border-emerald-200"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50"
+              }`}
+            >
+              Anomaly Queue
             </button>
             <button
               onClick={() => setActiveTab("coa")}
@@ -251,9 +263,29 @@ export function OrganizationManager() {
             >
               Audit Trail
             </button>
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap ${
+                activeTab === "overview"
+                  ? "bg-white text-slate-900 shadow-xs border border-slate-200"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50"
+              }`}
+            >
+              Tenant Details
+            </button>
           </div>
 
-          {/* Tab 1: Overview */}
+          {/* Subviews */}
+          {activeTab === "dashboard" && <DashboardOverviewView organizationId={activeOrg.id} />}
+          {activeTab === "anomalies" && <AnomalyReviewView organizationId={activeOrg.id} />}
+          {activeTab === "coa" && <ChartOfAccountsView organizationId={activeOrg.id} />}
+          {activeTab === "ledger" && <JournalLedgerView organizationId={activeOrg.id} />}
+          {activeTab === "staging" && <StagedTransactionsView organizationId={activeOrg.id} />}
+          {activeTab === "reports" && <FinancialReportsView organization={activeOrg} />}
+          {activeTab === "periods" && <FiscalPeriodsView organization={activeOrg} />}
+          {activeTab === "audit" && <AuditTrailView organization={activeOrg} />}
+
+          {/* Tab: Tenant Details */}
           {activeTab === "overview" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -279,14 +311,6 @@ export function OrganizationManager() {
               </div>
             </div>
           )}
-
-          {/* Subviews */}
-          {activeTab === "coa" && <ChartOfAccountsView organizationId={activeOrg.id} />}
-          {activeTab === "ledger" && <JournalLedgerView organizationId={activeOrg.id} />}
-          {activeTab === "staging" && <StagedTransactionsView organizationId={activeOrg.id} />}
-          {activeTab === "reports" && <FinancialReportsView organization={activeOrg} />}
-          {activeTab === "periods" && <FiscalPeriodsView organization={activeOrg} />}
-          {activeTab === "audit" && <AuditTrailView organization={activeOrg} />}
         </div>
       )}
 

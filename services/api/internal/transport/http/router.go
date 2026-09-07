@@ -11,11 +11,15 @@ import (
 
 	"github.com/NIRASHA3/finintel/services/api/internal/config"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/account"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/anomaly"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/audit"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/closing"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/dashboard"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/export"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/ledger"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/organization"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/reports"
+	"github.com/NIRASHA3/finintel/services/api/internal/domain/reversal"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/staging"
 	customMiddleware "github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
@@ -68,6 +72,10 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	reportsService := reports.NewService(pool)
 	closingService := closing.NewService(pool)
 	auditService := audit.NewService(pool)
+	reversalService := reversal.NewService(pool)
+	anomalyService := anomaly.NewService(pool)
+	dashboardService := dashboard.NewService(pool)
+	exportService := export.NewService(pool)
 
 	userHandler := NewUserHandler()
 	orgHandler := NewOrganizationHandler(orgService)
@@ -77,6 +85,10 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	reportsHandler := NewReportsHandler(reportsService)
 	closingHandler := NewClosingHandler(closingService)
 	auditHandler := NewAuditHandler(auditService)
+	reversalHandler := NewReversalHandler(reversalService)
+	anomalyHandler := NewAnomalyHandler(anomalyService)
+	dashboardHandler := NewDashboardHandler(dashboardService)
+	exportHandler := NewExportHandler(exportService)
 
 	// API v1 Protected Routes
 	r.Route("/api/v1", func(r chi.Router) {
@@ -87,7 +99,6 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 		r.Route("/organizations", func(r chi.Router) {
 			r.Post("/", orgHandler.CreateOrganization)
 			r.Get("/", orgHandler.ListOrganizations)
-			r.Get("/{organizationId}", orgHandler.GetOrganization)
 
 			// Organization-scoped Account routes
 			r.Route("/{organizationId}/accounts", func(r chi.Router) {
@@ -101,6 +112,7 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 				r.Get("/", ledgerHandler.ListJournalEntries)
 				r.Post("/", ledgerHandler.PostJournalEntry)
 				r.Get("/{entryId}", ledgerHandler.GetJournalEntry)
+				r.Post("/{entryId}/reverse", reversalHandler.PostReversalEntry)
 			})
 
 			// Organization-scoped Staged Transaction routes
@@ -128,8 +140,29 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 				r.Post("/{periodId}/unlock", closingHandler.UnlockPeriod)
 			})
 
+			// Organization-scoped Executive Dashboard routes
+			r.Route("/{organizationId}/dashboard", func(r chi.Router) {
+				r.Get("/metrics", dashboardHandler.GetDashboardMetrics)
+			})
+
+			// Organization-scoped Anomaly routes
+			r.Route("/{organizationId}/anomalies", func(r chi.Router) {
+				r.Get("/", anomalyHandler.ListAnomalies)
+			})
+
+			// Organization-scoped Data Export routes
+			r.Route("/{organizationId}/export", func(r chi.Router) {
+				r.Get("/ledger", exportHandler.ExportGeneralLedgerCSV)
+				r.Get("/audit", exportHandler.ExportAuditLogsCSV)
+			})
+
 			// Organization-scoped Audit Trail routes
-			r.Get("/{organizationId}/audit-logs", auditHandler.ListAuditLogs)
+			r.Route("/{organizationId}/audit-logs", func(r chi.Router) {
+				r.Get("/", auditHandler.ListAuditLogs)
+			})
+
+			// Get Organization by ID (leaf route)
+			r.Get("/{organizationId}", orgHandler.GetOrganization)
 		})
 	})
 
