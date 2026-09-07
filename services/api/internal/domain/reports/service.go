@@ -26,21 +26,21 @@ type AccountReportLine struct {
 }
 
 type TrialBalanceReport struct {
-	AsOfDate                string              `json:"asOfDate"`
-	Accounts                []AccountReportLine `json:"accounts"`
-	TotalDebitsMinorUnits   int64               `json:"totalDebitsMinorUnits"`
-	TotalCreditsMinorUnits  int64               `json:"totalCreditsMinorUnits"`
-	IsBalanced              bool                `json:"isBalanced"`
+	AsOfDate               string              `json:"asOfDate"`
+	Accounts               []AccountReportLine `json:"accounts"`
+	TotalDebitsMinorUnits  int64               `json:"totalDebitsMinorUnits"`
+	TotalCreditsMinorUnits int64               `json:"totalCreditsMinorUnits"`
+	IsBalanced             bool                `json:"isBalanced"`
 }
 
 type IncomeStatementReport struct {
-	StartDate                string              `json:"startDate"`
-	EndDate                  string              `json:"endDate"`
-	RevenueAccounts          []AccountReportLine `json:"revenueAccounts"`
-	ExpenseAccounts          []AccountReportLine `json:"expenseAccounts"`
-	TotalRevenueMinorUnits   int64               `json:"totalRevenueMinorUnits"`
-	TotalExpensesMinorUnits  int64               `json:"totalExpensesMinorUnits"`
-	NetIncomeMinorUnits      int64               `json:"netIncomeMinorUnits"`
+	StartDate               string              `json:"startDate"`
+	EndDate                 string              `json:"endDate"`
+	RevenueAccounts         []AccountReportLine `json:"revenueAccounts"`
+	ExpenseAccounts         []AccountReportLine `json:"expenseAccounts"`
+	TotalRevenueMinorUnits  int64               `json:"totalRevenueMinorUnits"`
+	TotalExpensesMinorUnits int64               `json:"totalExpensesMinorUnits"`
+	NetIncomeMinorUnits     int64               `json:"netIncomeMinorUnits"`
 }
 
 type BalanceSheetReport struct {

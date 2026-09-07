@@ -14,7 +14,7 @@ import (
 
 var (
 	ErrInvalidEntryLines      = errors.New("journal entry must contain at least 2 entry lines")
-	ErrInvalidLineAmount     = errors.New("entry line amounts must be non-negative integer minor units and specify either debit or credit, not both")
+	ErrInvalidLineAmount      = errors.New("entry line amounts must be non-negative integer minor units and specify either debit or credit, not both")
 	ErrUnbalancedJournalEntry = errors.New("unbalanced journal entry: total debits must equal total credits")
 	ErrInvalidTransactionDate = errors.New("transaction date is required")
 	ErrDescriptionRequired    = errors.New("transaction description is required (at least 3 characters)")
@@ -24,10 +24,10 @@ var (
 )
 
 type JournalEntryLineRequest struct {
-	AccountID             string `json:"accountId"`
+	AccountID              string `json:"accountId"`
 	DebitAmountMinorUnits  int64  `json:"debitAmountMinorUnits"`
 	CreditAmountMinorUnits int64  `json:"creditAmountMinorUnits"`
-	Memo                  string `json:"memo,omitempty"`
+	Memo                   string `json:"memo,omitempty"`
 }
 
 type CreateJournalEntryParams struct {

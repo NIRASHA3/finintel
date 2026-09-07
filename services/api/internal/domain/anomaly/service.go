@@ -15,8 +15,8 @@ var (
 
 type Anomaly struct {
 	ID              string    `json:"id"`
-	Type            string    `json:"type"`            // DUPLICATE_REFERENCE, OUTLIER_AMOUNT, UNMAPPED_PAYEE
-	Severity        string    `json:"severity"`        // HIGH, MEDIUM, LOW
+	Type            string    `json:"type"`     // DUPLICATE_REFERENCE, OUTLIER_AMOUNT, UNMAPPED_PAYEE
+	Severity        string    `json:"severity"` // HIGH, MEDIUM, LOW
 	Title           string    `json:"title"`
 	Description     string    `json:"description"`
 	ConfidenceScore float64   `json:"confidenceScore"`

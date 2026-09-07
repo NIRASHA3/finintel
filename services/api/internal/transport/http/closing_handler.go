@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/closing"
 	customMiddleware "github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
+	"github.com/go-chi/chi/v5"
 )
 
 type ClosingHandler struct {

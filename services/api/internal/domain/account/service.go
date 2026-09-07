@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	ErrInvalidAccountCode  = errors.New("account code is required and must be alphanumeric (1-50 characters)")
-	ErrInvalidAccountName  = errors.New("account name is required (at least 2 characters)")
-	ErrInvalidAccountType  = errors.New("account type must be ASSET, LIABILITY, EQUITY, REVENUE, or EXPENSE")
+	ErrInvalidAccountCode   = errors.New("account code is required and must be alphanumeric (1-50 characters)")
+	ErrInvalidAccountName   = errors.New("account name is required (at least 2 characters)")
+	ErrInvalidAccountType   = errors.New("account type must be ASSET, LIABILITY, EQUITY, REVENUE, or EXPENSE")
 	ErrAccountAlreadyExists = errors.New("account code already exists in this organization")
-	ErrDatabaseUnavailable = errors.New("database connection is unavailable")
+	ErrDatabaseUnavailable  = errors.New("database connection is unavailable")
 )
 
 type AccountType string

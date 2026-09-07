@@ -19,13 +19,13 @@ var (
 )
 
 type BankTransaction struct {
-	ID              string    `json:"id"`
-	TransactionDate string    `json:"transaction_date"` // YYYY-MM-DD
-	AmountMinor     int64     `json:"amount_minor_units"`
-	Reference       string    `json:"reference"`
-	Description     string    `json:"description"`
-	Reconciled      bool      `json:"reconciled"`
-	MatchedEntryID  string    `json:"matched_entry_id,omitempty"`
+	ID              string `json:"id"`
+	TransactionDate string `json:"transaction_date"` // YYYY-MM-DD
+	AmountMinor     int64  `json:"amount_minor_units"`
+	Reference       string `json:"reference"`
+	Description     string `json:"description"`
+	Reconciled      bool   `json:"reconciled"`
+	MatchedEntryID  string `json:"matched_entry_id,omitempty"`
 }
 
 type MatchedJournalEntry struct {
@@ -37,15 +37,15 @@ type MatchedJournalEntry struct {
 }
 
 type MatchResult struct {
-	ID                 string               `json:"id"`
-	BankTransactionID  string               `json:"bank_transaction_id"`
-	BankDate           string               `json:"bank_date"`
-	BankAmountMinor    int64                `json:"bank_amount_minor_units"`
-	BankReference      string               `json:"bank_reference"`
-	MatchedEntry       *MatchedJournalEntry `json:"matched_entry,omitempty"`
-	ConfidenceScore    float64              `json:"confidence_score"`
-	MatchStatus        string               `json:"match_status"` // "EXACT_MATCH", "HIGH_CONFIDENCE", "SUGGESTED", "UNMATCHED", "MANUALLY_MATCHED"
-	DiscrepancyReason  string               `json:"discrepancy_reason,omitempty"`
+	ID                string               `json:"id"`
+	BankTransactionID string               `json:"bank_transaction_id"`
+	BankDate          string               `json:"bank_date"`
+	BankAmountMinor   int64                `json:"bank_amount_minor_units"`
+	BankReference     string               `json:"bank_reference"`
+	MatchedEntry      *MatchedJournalEntry `json:"matched_entry,omitempty"`
+	ConfidenceScore   float64              `json:"confidence_score"`
+	MatchStatus       string               `json:"match_status"` // "EXACT_MATCH", "HIGH_CONFIDENCE", "SUGGESTED", "UNMATCHED", "MANUALLY_MATCHED"
+	DiscrepancyReason string               `json:"discrepancy_reason,omitempty"`
 }
 
 type Service struct {

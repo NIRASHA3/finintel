@@ -134,4 +134,3 @@ func loadDotEnv(paths ...string) {
 		}
 	}
 }
-

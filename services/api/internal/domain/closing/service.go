@@ -19,13 +19,13 @@ var (
 )
 
 type FiscalPeriod struct {
-	ID             string    `json:"id"`
-	OrganizationID string    `json:"organizationId"`
-	FiscalYear     int       `json:"fiscalYear"`
-	PeriodNumber   int       `json:"periodNumber"`
-	StartDate      string    `json:"startDate"`
-	EndDate        string    `json:"endDate"`
-	Status         string    `json:"status"` // OPEN, CLOSED, LOCKED
+	ID             string `json:"id"`
+	OrganizationID string `json:"organizationId"`
+	FiscalYear     int    `json:"fiscalYear"`
+	PeriodNumber   int    `json:"periodNumber"`
+	StartDate      string `json:"startDate"`
+	EndDate        string `json:"endDate"`
+	Status         string `json:"status"` // OPEN, CLOSED, LOCKED
 }
 
 type Service struct {
@@ -104,7 +104,7 @@ func (s *Service) GenerateFiscalPeriods(ctx context.Context, orgID string, year 
 	var periods []FiscalPeriod
 	for periodNum := 1; periodNum <= 12; periodNum++ {
 		// Calculate target month and year for this period
-		calcMonth := (startMonth - 1 + periodNum - 1) % 12 + 1
+		calcMonth := (startMonth-1+periodNum-1)%12 + 1
 		calcYear := year
 		if (startMonth - 1 + periodNum - 1) >= 12 {
 			calcYear = year + 1
@@ -192,9 +192,9 @@ func (s *Service) updatePeriodStatus(ctx context.Context, orgID string, periodID
 
 	// Audit Log recording
 	changesJSON, _ := json.Marshal(map[string]interface{}{
-		"period_id":     periodID,
-		"fiscal_year":   p.FiscalYear,
-		"period_number": p.PeriodNumber,
+		"period_id":       periodID,
+		"fiscal_year":     p.FiscalYear,
+		"period_number":   p.PeriodNumber,
 		"previous_status": currentStatus,
 		"new_status":      newStatus,
 	})

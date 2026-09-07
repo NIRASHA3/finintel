@@ -15,12 +15,12 @@ import (
 )
 
 var (
-	ErrEntryNotFound        = errors.New("target journal entry not found")
-	ErrEntryNotPosted       = errors.New("only posted journal entries can be reversed")
-	ErrAlreadyReversed      = errors.New("this journal entry has already been reversed")
-	ErrFiscalPeriodLocked   = errors.New("cannot reverse entry into a closed or locked fiscal period")
-	ErrReasonRequired       = errors.New("a valid reason for reversal is required (at least 3 characters)")
-	ErrDatabaseUnavailable  = errors.New("database connection is unavailable")
+	ErrEntryNotFound       = errors.New("target journal entry not found")
+	ErrEntryNotPosted      = errors.New("only posted journal entries can be reversed")
+	ErrAlreadyReversed     = errors.New("this journal entry has already been reversed")
+	ErrFiscalPeriodLocked  = errors.New("cannot reverse entry into a closed or locked fiscal period")
+	ErrReasonRequired      = errors.New("a valid reason for reversal is required (at least 3 characters)")
+	ErrDatabaseUnavailable = errors.New("database connection is unavailable")
 )
 
 type Service struct {

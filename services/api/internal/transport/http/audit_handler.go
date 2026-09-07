@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/audit"
+	"github.com/go-chi/chi/v5"
 )
 
 type AuditHandler struct {

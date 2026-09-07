@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/reports"
+	"github.com/go-chi/chi/v5"
 )
 
 type ReportsHandler struct {
