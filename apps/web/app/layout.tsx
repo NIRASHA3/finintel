@@ -7,9 +7,9 @@ export const metadata: Metadata = {
   title: "FinIntel - Multi-Tenant Financial Operations Platform",
   description: "Production-oriented multi-tenant financial operations platform.",
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
 };
 
