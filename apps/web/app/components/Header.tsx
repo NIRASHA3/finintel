@@ -4,16 +4,11 @@ export const Header: React.FC = () => {
   return (
     <header className="w-full bg-white border-b border-slate-200 shadow-xs sticky top-0 z-40" role="banner">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <img
-            src="/favicon.png"
-            alt="FinIntel Icon"
-            className="h-10 w-10 object-contain drop-shadow-xs"
-          />
+        <div className="flex items-center">
           <img
             src="/logo.png"
             alt="FinIntel Logo"
-            className="h-12 sm:h-14 w-auto object-contain max-w-[220px]"
+            className="h-14 sm:h-16 w-auto object-contain"
           />
         </div>
         <nav aria-label="Main Navigation" className="hidden sm:block">
