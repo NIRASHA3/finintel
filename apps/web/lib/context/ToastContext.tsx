@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from "react";
 
 export type ToastType = "success" | "error" | "info" | "warning";
 
@@ -11,16 +11,20 @@ export interface ToastItem {
   message: string;
 }
 
-interface ToastContextType {
-  toasts: ToastItem[];
+export interface ToastActions {
   showToast: (message: string, type?: ToastType, title?: string) => void;
   removeToast: (id: string) => void;
+  success: (message: string, title?: string) => void;
+  error: (message: string, title?: string) => void;
+  info: (message: string, title?: string) => void;
+  warning: (message: string, title?: string) => void;
 }
 
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
+const ToastActionContext = createContext<ToastActions | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const recentMessagesRef = useRef<Map<string, number>>(new Map());
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -28,8 +32,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const showToast = useCallback(
     (message: string, type: ToastType = "info", title?: string) => {
+      // Throttle identical error messages within 2 seconds to avoid toast stacking
+      const key = `${type}:${title || ""}:${message}`;
+      const now = Date.now();
+      const lastSeen = recentMessagesRef.current.get(key) || 0;
+      if (now - lastSeen < 2000) {
+        return;
+      }
+      recentMessagesRef.current.set(key, now);
+
       const id = Math.random().toString(36).substring(2, 9);
-      setToasts((prev) => [...prev, { id, type, title, message }]);
+      setToasts((prev) => {
+        // Keep at most 4 active toasts on screen
+        const next = [...prev, { id, type, title, message }];
+        return next.slice(-4);
+      });
 
       // Auto-dismiss after 4.5 seconds
       setTimeout(() => {
@@ -39,8 +56,37 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [removeToast]
   );
 
+  const success = useCallback(
+    (message: string, title?: string) => showToast(message, "success", title),
+    [showToast]
+  );
+  const error = useCallback(
+    (message: string, title?: string) => showToast(message, "error", title),
+    [showToast]
+  );
+  const info = useCallback(
+    (message: string, title?: string) => showToast(message, "info", title),
+    [showToast]
+  );
+  const warning = useCallback(
+    (message: string, title?: string) => showToast(message, "warning", title),
+    [showToast]
+  );
+
+  const actions = useMemo<ToastActions>(
+    () => ({
+      showToast,
+      removeToast,
+      success,
+      error,
+      info,
+      warning,
+    }),
+    [showToast, removeToast, success, error, info, warning]
+  );
+
   return (
-    <ToastContext.Provider value={{ toasts, showToast, removeToast }}>
+    <ToastActionContext.Provider value={actions}>
       {children}
       {/* Toast Notification Region */}
       <div
@@ -79,27 +125,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           </div>
         ))}
       </div>
-    </ToastContext.Provider>
+    </ToastActionContext.Provider>
   );
 }
 
-export function useToast(): {
-  showToast: (message: string, type?: ToastType, title?: string) => void;
-  success: (message: string, title?: string) => void;
-  error: (message: string, title?: string) => void;
-  info: (message: string, title?: string) => void;
-  warning: (message: string, title?: string) => void;
-} {
-  const context = useContext(ToastContext);
+export function useToast(): ToastActions {
+  const context = useContext(ToastActionContext);
   if (!context) {
     throw new Error("useToast must be used within a ToastProvider");
   }
-
-  return {
-    showToast: context.showToast,
-    success: (message: string, title?: string) => context.showToast(message, "success", title),
-    error: (message: string, title?: string) => context.showToast(message, "error", title),
-    info: (message: string, title?: string) => context.showToast(message, "info", title),
-    warning: (message: string, title?: string) => context.showToast(message, "warning", title),
-  };
+  return context;
 }

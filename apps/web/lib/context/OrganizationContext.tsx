@@ -125,20 +125,33 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     }
   }, [activeOrg]);
 
+  const contextValue = React.useMemo(
+    () => ({
+      user,
+      organizations,
+      activeOrg,
+      loading,
+      error,
+      healthStatus,
+      switchOrganization,
+      refreshOrganizations,
+      refreshHealth,
+    }),
+    [
+      user,
+      organizations,
+      activeOrg,
+      loading,
+      error,
+      healthStatus,
+      switchOrganization,
+      refreshOrganizations,
+      refreshHealth,
+    ]
+  );
+
   return (
-    <OrganizationContext.Provider
-      value={{
-        user,
-        organizations,
-        activeOrg,
-        loading,
-        error,
-        healthStatus,
-        switchOrganization,
-        refreshOrganizations,
-        refreshHealth,
-      }}
-    >
+    <OrganizationContext.Provider value={contextValue}>
       {children}
     </OrganizationContext.Provider>
   );
