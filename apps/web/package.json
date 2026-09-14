@@ -7,12 +7,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint --dir app",
+    "lint": "next lint --dir app --dir lib --dir scripts",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "cleanup-sessions": "tsx scripts/cleanup-sessions.ts"
   },
   "dependencies": {
+    "jose": "^6.0.8",
     "next": "^15.1.7",
+    "pg": "^8.23.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -20,16 +24,18 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^22.13.1",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.20.0",
     "eslint-config-next": "^15.1.7",
     "jsdom": "^26.0.0",
     "postcss": "^8.5.2",
     "tailwindcss": "^3.4.17",
+    "tsx": "4.23.13",
     "typescript": "^5.7.3",
-    "@vitejs/plugin-react": "^4.3.4",
     "vitest": "^3.0.5"
   }
 }

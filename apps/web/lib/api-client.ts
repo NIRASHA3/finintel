@@ -2,9 +2,9 @@ export interface UserProfile {
   id: string;
   email: string;
   fullName: string;
-  identityProviderIssuer: string;
-  externalSubjectId: string;
-  createdAt: string;
+  identityProviderIssuer?: string;
+  externalSubjectId?: string;
+  createdAt?: string;
 }
 
 export interface Organization {
@@ -96,268 +96,6 @@ export interface BatchPostResult {
   totalCreditsMinorUnits: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-
-export async function fetchCurrentUser(): Promise<UserProfile> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch current user profile: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function fetchUserOrganizations(): Promise<Organization[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch user organizations: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.organizations || [];
-}
-
-export async function createOrganization(params: CreateOrganizationParams): Promise<Organization> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: params.name,
-      baseCurrency: params.baseCurrency || "USD",
-      fiscalYearStartMonth: params.fiscalYearStartMonth || 1,
-    }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to create organization: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function fetchAccounts(orgId: string): Promise<Account[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/accounts`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Chart of Accounts: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.accounts || [];
-}
-
-export async function seedDefaultAccounts(orgId: string): Promise<Account[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/accounts/seed`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to seed default accounts: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.accounts || [];
-}
-
-export async function createAccount(orgId: string, params: CreateAccountParams): Promise<Account> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/accounts`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(params),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to create account: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export interface JournalEntriesResponse {
-  entries: JournalEntry[];
-  nextCursor?: string | null;
-}
-
-export async function fetchJournalEntries(
-  orgId: string,
-  cursor?: string,
-  limit: number = 50
-): Promise<JournalEntriesResponse> {
-  const params = new URLSearchParams();
-  if (cursor) params.append("cursor", cursor);
-  if (limit) params.append("limit", limit.toString());
-  const query = params.toString() ? `?${params.toString()}` : "";
-
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/journal-entries${query}`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch journal entries: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return {
-    entries: data.entries || [],
-    nextCursor: data.next_cursor || null,
-  };
-}
-
-export async function postJournalEntry(orgId: string, params: PostJournalEntryParams): Promise<JournalEntry> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/journal-entries`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(params),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to post journal entry: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function fetchStagedTransactions(orgId: string, status?: string): Promise<StagedTransaction[]> {
-  const query = status && status !== "ALL" ? `?status=${status}` : "";
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions${query}`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch staged transactions: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.stagedTransactions || [];
-}
-
-export async function uploadCSVStagedTransactions(orgId: string, fileOrContent: File | string): Promise<{ insertedCount: number; message: string }> {
-  let body: any;
-  const headers: Record<string, string> = {
-    Authorization: "Bearer dev-token-admin@finintel.io",
-  };
-
-  if (typeof fileOrContent === "string") {
-    body = fileOrContent;
-    headers["Content-Type"] = "text/csv";
-  } else {
-    const formData = new FormData();
-    formData.append("file", fileOrContent);
-    body = formData;
-  }
-
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions/upload`, {
-    method: "POST",
-    headers,
-    body,
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to upload CSV: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function approveStagedTransaction(orgId: string, id: string, accountId?: string): Promise<StagedTransaction> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions/${id}/approve`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ accountId }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to approve staged transaction: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function rejectStagedTransaction(orgId: string, id: string): Promise<StagedTransaction> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions/${id}/reject`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to reject staged transaction: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function batchPostStagedTransactions(orgId: string): Promise<BatchPostResult> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/staged-transactions/batch-post`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to batch post approved transactions: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-// Phase 5 Interfaces
 export interface AccountReportLine {
   accountId: string;
   accountCode: string;
@@ -426,184 +164,6 @@ export interface AuditLog {
   createdAt: string;
 }
 
-// Phase 5 API Functions
-export async function fetchTrialBalance(orgId: string, asOfDate?: string): Promise<TrialBalanceReport> {
-  const query = asOfDate ? `?asOfDate=${asOfDate}` : "";
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/reports/trial-balance${query}`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Trial Balance report: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function fetchIncomeStatement(orgId: string, startDate?: string, endDate?: string): Promise<IncomeStatementReport> {
-  const params = new URLSearchParams();
-  if (startDate) params.append("startDate", startDate);
-  if (endDate) params.append("endDate", endDate);
-  const query = params.toString() ? `?${params.toString()}` : "";
-
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/reports/income-statement${query}`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Income Statement report: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function fetchBalanceSheet(orgId: string, asOfDate?: string): Promise<BalanceSheetReport> {
-  const query = asOfDate ? `?asOfDate=${asOfDate}` : "";
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/reports/balance-sheet${query}`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Balance Sheet report: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function fetchFiscalPeriods(orgId: string): Promise<FiscalPeriod[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch fiscal periods: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.fiscalPeriods || [];
-}
-
-export async function generateFiscalPeriods(orgId: string, fiscalYear?: number): Promise<FiscalPeriod[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods/generate`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ fiscalYear }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to generate fiscal periods: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.fiscalPeriods || [];
-}
-
-export async function closeFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/close`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to close fiscal period: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function lockFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/lock`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to lock fiscal period: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function unlockFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/unlock`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to unlock fiscal period: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export interface AuditLogsResponse {
-  auditLogs: AuditLog[];
-  nextCursor?: string | null;
-}
-
-export async function fetchAuditLogs(
-  orgId: string,
-  limit: number = 100,
-  cursor?: string
-): Promise<AuditLogsResponse> {
-  const params = new URLSearchParams();
-  if (limit) params.append("limit", limit.toString());
-  if (cursor) params.append("cursor", cursor);
-  const query = params.toString() ? `?${params.toString()}` : "";
-
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/audit-logs${query}`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch audit logs: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return {
-    auditLogs: data.auditLogs || [],
-    nextCursor: data.next_cursor || null,
-  };
-}
-
-// Phase 6 Interfaces & API Functions
 export interface Anomaly {
   id: string;
   type: "DUPLICATE_REFERENCE" | "OUTLIER_AMOUNT" | "UNMAPPED_PAYEE";
@@ -635,100 +195,6 @@ export interface DashboardMetrics {
   expenseBreakdown: ExpenseCategoryBreakdown[];
 }
 
-export async function postJournalEntryReversal(orgId: string, entryId: string, reason: string): Promise<JournalEntry> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/journal-entries/${entryId}/reverse`, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ reason }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || errorData.message || `Failed to post entry reversal: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function fetchAnomalies(orgId: string): Promise<Anomaly[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/anomalies`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch anomalies: HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.anomalies || [];
-}
-
-export async function fetchDashboardMetrics(orgId: string): Promise<DashboardMetrics> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/dashboard/metrics`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch executive dashboard metrics: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function downloadLedgerCSV(orgId: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/export/ledger`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to export ledger CSV: HTTP ${res.status}`);
-  }
-
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `finintel_ledger_${orgId.slice(0, 8)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-export async function downloadAuditLogsCSV(orgId: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/export/audit`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to export audit logs CSV: HTTP ${res.status}`);
-  }
-
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `finintel_audit_logs_${orgId.slice(0, 8)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-// Phase 7 Interfaces & API Functions
 export interface ReconciliationMatch {
   id: string;
   bankTransactionId: string;
@@ -788,19 +254,503 @@ export interface OrgMember {
   user_id: string;
   email: string;
   name: string;
-  role: "Admin" | "Controller" | "Accountant" | "Auditor";
+  role: "OWNER" | "ADMINISTRATOR" | "ACCOUNTANT" | "ANALYST" | "AUDITOR_VIEWER";
   status: string;
   created_at: string;
 }
 
-export async function autoMatchReconciliation(orgId: string, transactions: any[]): Promise<ReconciliationMatch[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/reconciliations/match`, {
+export class PermissionDeniedError extends Error {
+  constructor(message = "Permission denied for this action") {
+    super(message);
+    this.name = "PermissionDeniedError";
+  }
+}
+
+export class ServiceUnavailableError extends Error {
+  constructor(message = "Service is temporarily unavailable") {
+    super(message);
+    this.name = "ServiceUnavailableError";
+  }
+}
+
+// In-Memory CSRF Token Cache
+let cachedCsrfToken: string | null = null;
+
+export async function fetchCsrfToken(): Promise<string | null> {
+  try {
+    const res = await fetch("/api/auth/session", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      cachedCsrfToken = data.csrfToken || null;
+      return cachedCsrfToken;
+    }
+  } catch (e) {
+    console.warn("Failed to acquire CSRF token:", e);
+  }
+  return null;
+}
+
+async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const method = (options.method || "GET").toUpperCase();
+  const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
+
+  if (isMutation && !cachedCsrfToken) {
+    await fetchCsrfToken();
+  }
+
+  const headers = new Headers(options.headers || {});
+  if (isMutation && cachedCsrfToken) {
+    headers.set("X-FinIntel-CSRF", cachedCsrfToken);
+  }
+
+  const targetUrl = path.startsWith("/api/auth") ? path : `/api/proxy${path}`;
+
+  let res = await fetch(targetUrl, {
+    ...options,
+    headers,
+    cache: "no-store",
+  });
+
+  // Automatically attempt one token refresh if 401 returned
+  if (res.status === 401 && !path.startsWith("/api/auth/login")) {
+    try {
+      const refreshRes = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: cachedCsrfToken ? { "X-FinIntel-CSRF": cachedCsrfToken } : {},
+      });
+
+      if (refreshRes.ok) {
+        await fetchCsrfToken();
+        // REQUIREMENT 4: Only retry safe/idempotent GET requests automatically
+        if (method === "GET") {
+          const retryHeaders = new Headers(options.headers || {});
+          res = await fetch(targetUrl, {
+            ...options,
+            headers: retryHeaders,
+            cache: "no-store",
+          });
+        } else {
+          throw new Error("SESSION_EXPIRED: Session was refreshed. Please resubmit your request deliberately.");
+        }
+      }
+    } catch (e: any) {
+      if (e?.message?.startsWith("SESSION_EXPIRED")) {
+        throw e;
+      }
+      // Refresh failed, proceed to handle original 401
+    }
+  }
+
+  if (res.status === 403) {
+    throw new PermissionDeniedError();
+  }
+  if (res.status === 503) {
+    throw new ServiceUnavailableError();
+  }
+
+  return res;
+}
+
+export async function fetchCurrentUser(): Promise<UserProfile> {
+  const res = await apiFetch("/api/v1/users/me");
+  if (!res.ok) {
+    throw new Error(`Failed to fetch current user profile: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchUserOrganizations(): Promise<Organization[]> {
+  const res = await apiFetch("/api/v1/organizations");
+  if (!res.ok) {
+    throw new Error(`Failed to fetch user organizations: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.organizations || [];
+}
+
+export async function createOrganization(params: CreateOrganizationParams): Promise<Organization> {
+  const res = await apiFetch("/api/v1/organizations", {
     method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "X-Organization-ID": orgId,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: params.name,
+      baseCurrency: params.baseCurrency || "USD",
+      fiscalYearStartMonth: params.fiscalYearStartMonth || 1,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to create organization: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchAccounts(orgId: string): Promise<Account[]> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/accounts`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch Chart of Accounts: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.accounts || [];
+}
+
+export async function seedDefaultAccounts(orgId: string): Promise<Account[]> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/accounts/seed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to seed default accounts: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.accounts || [];
+}
+
+export async function createAccount(orgId: string, params: CreateAccountParams): Promise<Account> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/accounts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to create account: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export interface JournalEntriesResponse {
+  entries: JournalEntry[];
+  nextCursor?: string | null;
+}
+
+export async function fetchJournalEntries(
+  orgId: string,
+  cursor?: string,
+  limit: number = 50
+): Promise<JournalEntriesResponse> {
+  const params = new URLSearchParams();
+  if (cursor) params.append("cursor", cursor);
+  if (limit) params.append("limit", limit.toString());
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/journal-entries${query}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch journal entries: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return {
+    entries: data.entries || [],
+    nextCursor: data.next_cursor || null,
+  };
+}
+
+export async function postJournalEntry(orgId: string, params: PostJournalEntryParams): Promise<JournalEntry> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/journal-entries`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to post journal entry: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchJournalEntry(orgId: string, entryId: string): Promise<JournalEntry> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/journal-entries/${entryId}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch journal entry: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchStagedTransactions(orgId: string, status?: string): Promise<StagedTransaction[]> {
+  const query = status && status !== "ALL" ? `?status=${status}` : "";
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/staged-transactions${query}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch staged transactions: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.stagedTransactions || [];
+}
+
+export async function uploadCSVStagedTransactions(
+  orgId: string,
+  fileOrContent: File | string
+): Promise<{ insertedCount: number; message: string }> {
+  let body: any;
+  const headers: Record<string, string> = {};
+
+  if (typeof fileOrContent === "string") {
+    body = fileOrContent;
+    headers["Content-Type"] = "text/csv";
+  } else {
+    const formData = new FormData();
+    formData.append("file", fileOrContent);
+    body = formData;
+  }
+
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/staged-transactions/upload`, {
+    method: "POST",
+    headers,
+    body,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to upload CSV: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function approveStagedTransaction(orgId: string, id: string, accountId?: string): Promise<StagedTransaction> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/staged-transactions/${id}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accountId }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to approve staged transaction: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function rejectStagedTransaction(orgId: string, id: string): Promise<StagedTransaction> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/staged-transactions/${id}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to reject staged transaction: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function batchPostStagedTransactions(orgId: string): Promise<BatchPostResult> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/staged-transactions/batch-post`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to batch post approved transactions: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchTrialBalance(orgId: string, asOfDate?: string): Promise<TrialBalanceReport> {
+  const query = asOfDate ? `?asOfDate=${asOfDate}` : "";
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/reports/trial-balance${query}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch Trial Balance report: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchIncomeStatement(orgId: string, startDate?: string, endDate?: string): Promise<IncomeStatementReport> {
+  const params = new URLSearchParams();
+  if (startDate) params.append("startDate", startDate);
+  if (endDate) params.append("endDate", endDate);
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/reports/income-statement${query}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch Income Statement report: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchBalanceSheet(orgId: string, asOfDate?: string): Promise<BalanceSheetReport> {
+  const query = asOfDate ? `?asOfDate=${asOfDate}` : "";
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/reports/balance-sheet${query}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch Balance Sheet report: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchFiscalPeriods(orgId: string): Promise<FiscalPeriod[]> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/fiscal-periods`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch fiscal periods: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.fiscalPeriods || [];
+}
+
+export async function generateFiscalPeriods(orgId: string, fiscalYear?: number): Promise<FiscalPeriod[]> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/fiscal-periods/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fiscalYear }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to generate fiscal periods: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.fiscalPeriods || [];
+}
+
+export async function closeFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/close`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to close fiscal period: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function lockFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/lock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to lock fiscal period: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function unlockFiscalPeriod(orgId: string, periodId: string): Promise<FiscalPeriod> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/fiscal-periods/${periodId}/unlock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to unlock fiscal period: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export interface AuditLogsResponse {
+  auditLogs: AuditLog[];
+  nextCursor?: string | null;
+}
+
+export async function fetchAuditLogs(
+  orgId: string,
+  limit: number = 100,
+  cursor?: string
+): Promise<AuditLogsResponse> {
+  const params = new URLSearchParams();
+  if (limit) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/audit-logs${query}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch audit logs: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return {
+    auditLogs: data.auditLogs || [],
+    nextCursor: data.next_cursor || null,
+  };
+}
+
+export async function postJournalEntryReversal(orgId: string, entryId: string, reason: string): Promise<JournalEntry> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/journal-entries/${entryId}/reverse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.message || `Failed to post entry reversal: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchAnomalies(orgId: string): Promise<Anomaly[]> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/anomalies`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch anomalies: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.anomalies || [];
+}
+
+export async function fetchDashboardMetrics(orgId: string): Promise<DashboardMetrics> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/dashboard/metrics`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch executive dashboard metrics: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function downloadLedgerCSV(orgId: string): Promise<void> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/export/ledger`);
+  if (!res.ok) {
+    throw new Error(`Failed to export ledger CSV: HTTP ${res.status}`);
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `finintel_ledger_${orgId.slice(0, 8)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+export async function downloadAuditLogsCSV(orgId: string): Promise<void> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/export/audit`);
+  if (!res.ok) {
+    throw new Error(`Failed to export audit logs CSV: HTTP ${res.status}`);
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `finintel_audit_logs_${orgId.slice(0, 8)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+export async function autoMatchReconciliation(orgId: string, transactions: any[]): Promise<ReconciliationMatch[]> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/reconciliations/match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ transactions }),
   });
 
@@ -814,31 +764,18 @@ export async function autoMatchReconciliation(orgId: string, transactions: any[]
 }
 
 export async function fetchWebhookSubscriptions(orgId: string): Promise<WebhookSubscription[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/webhooks/subscriptions`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "X-Organization-ID": orgId,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/webhooks/subscriptions`);
   if (!res.ok) {
     throw new Error(`Failed to fetch webhook subscriptions: HTTP ${res.status}`);
   }
-
   const data = await res.json();
   return data.subscriptions || [];
 }
 
 export async function createWebhookSubscription(orgId: string, targetUrl: string, events: string[]): Promise<WebhookSubscription> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/webhooks/subscriptions`, {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/webhooks/subscriptions`, {
     method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "X-Organization-ID": orgId,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target_url: targetUrl, events }),
   });
 
@@ -851,45 +788,33 @@ export async function createWebhookSubscription(orgId: string, targetUrl: string
 }
 
 export async function deleteWebhookSubscription(orgId: string, id: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/webhooks/subscriptions/${id}`, {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/webhooks/subscriptions/${id}`, {
     method: "DELETE",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "X-Organization-ID": orgId,
-    },
   });
-
   if (!res.ok) {
     throw new Error(`Failed to delete webhook subscription: HTTP ${res.status}`);
   }
 }
 
 export async function fetchFxRates(orgId: string): Promise<FxRate[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/fx-rates`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "X-Organization-ID": orgId,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/fx-rates`);
   if (!res.ok) {
     throw new Error(`Failed to fetch FX exchange rates: HTTP ${res.status}`);
   }
-
   const data = await res.json();
   return data.rates || [];
 }
 
-export async function upsertFxRate(orgId: string, baseCurrency: string, targetCurrency: string, rate: number, effectiveDate?: string): Promise<FxRate> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/fx-rates`, {
+export async function upsertFxRate(
+  orgId: string,
+  baseCurrency: string,
+  targetCurrency: string,
+  rate: number,
+  effectiveDate?: string
+): Promise<FxRate> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/fx-rates`, {
     method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "X-Organization-ID": orgId,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ base_currency: baseCurrency, target_currency: targetCurrency, rate, effective_date: effectiveDate }),
   });
 
@@ -901,14 +826,15 @@ export async function upsertFxRate(orgId: string, baseCurrency: string, targetCu
   return res.json();
 }
 
-export async function runFxRevaluation(orgId: string, baseCurrency: string, foreignCurrency: string, foreignAmount: number): Promise<FxRevaluationResult> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/fx-rates/revalue`, {
+export async function runFxRevaluation(
+  orgId: string,
+  baseCurrency: string,
+  foreignCurrency: string,
+  foreignAmount: number
+): Promise<FxRevaluationResult> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/fx-rates/revalue`, {
     method: "POST",
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "X-Organization-ID": orgId,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ base_currency: baseCurrency, foreign_currency: foreignCurrency, foreign_amount: foreignAmount }),
   });
 
@@ -921,20 +847,51 @@ export async function runFxRevaluation(orgId: string, baseCurrency: string, fore
 }
 
 export async function fetchOrganizationMembers(orgId: string): Promise<OrgMember[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}/members`, {
-    headers: {
-      Authorization: "Bearer dev-token-admin@finintel.io",
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/members`);
   if (!res.ok) {
     throw new Error(`Failed to fetch organization members: HTTP ${res.status}`);
   }
-
   const data = await res.json();
   return data.members || [];
 }
 
+export async function updateMemberRole(orgId: string, memberId: string, role: string): Promise<OrgMember> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/members/${memberId}/role`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
+  });
 
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to update member role: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function addOrganizationMember(orgId: string, email: string, role: string): Promise<OrgMember> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, role }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to add member: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function removeOrganizationMember(orgId: string, memberId: string): Promise<void> {
+  const res = await apiFetch(`/api/v1/organizations/${orgId}/members/${memberId}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to remove member: HTTP ${res.status}`);
+  }
+}

@@ -5,6 +5,7 @@ info:
   version: 1.0.0
   license:
     name: Proprietary
+    identifier: Proprietary
 servers:
   - url: http://localhost:8080
     description: Local Development Server
@@ -389,6 +390,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/StagedTransactionResponse'
 
+  /api/v1/organizations/{organizationId}/staged-transactions/batch-post:
+    post:
+      summary: Batch Post Approved Staged Transactions
+      description: Automatically converts all APPROVED staged transactions into POSTED journal entries with double-entry validation.
+      operationId: batchPostStagedTransactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Batch posting completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchPostResponse'
+
   /api/v1/organizations/{organizationId}/reports/trial-balance:
     get:
       summary: Get Trial Balance Report
@@ -766,83 +789,180 @@ paths:
       responses:
         '200':
           description: CSV file generated successfully.
-  /api/v1/reconciliations/match:
+  /api/v1/organizations/{organizationId}/reconciliations/match:
     post:
-      summary: Auto-match Bank Transactions
-      description: Performs rules-based auto-matching of imported bank statement lines against posted journal entries.
+      summary: Auto-match Bank Transactions (Track 1 Disabled)
+      description: Returns 501 Not Implemented during Track 1.
       operationId: autoMatchBankTransactions
       security:
         - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                transactions:
-                  type: array
-                  items:
-                    type: object
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Matching executed successfully.
+          description: Reserved for Track 2 implementation.
+        '501':
+          description: Endpoint disabled in Track 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/webhooks/subscriptions:
+  /api/v1/organizations/{organizationId}/webhooks/subscriptions:
     get:
-      summary: List Webhook Subscriptions
-      description: Retrieves active webhook subscriptions for event delivery.
+      summary: List Webhook Subscriptions (Track 1 Disabled)
+      description: Returns 501 Not Implemented during Track 1.
       operationId: listWebhookSubscriptions
       security:
         - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: List of subscriptions.
+          description: Reserved for Track 2 implementation.
+        '501':
+          description: Endpoint disabled in Track 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
-      summary: Create Webhook Subscription
-      description: Registers a target URL and event filters for HMAC-signed webhook notifications.
+      summary: Create Webhook Subscription (Track 1 Disabled)
+      description: Returns 501 Not Implemented during Track 1.
       operationId: createWebhookSubscription
       security:
         - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
-        '201':
-          description: Webhook subscription created.
+        '200':
+          description: Reserved for Track 2 implementation.
+        '501':
+          description: Endpoint disabled in Track 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/fx-rates:
+  /api/v1/organizations/{organizationId}/webhooks/subscriptions/{id}:
+    delete:
+      summary: Delete Webhook Subscription (Track 1 Disabled)
+      description: Returns 501 Not Implemented during Track 1.
+      operationId: deleteWebhookSubscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reserved for Track 2 implementation.
+        '501':
+          description: Endpoint disabled in Track 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/organizations/{organizationId}/fx-rates:
     get:
-      summary: List FX Exchange Rates
-      description: Retrieves configured exchange rates for tenant currency pairs.
+      summary: List FX Exchange Rates (Track 1 Disabled)
+      description: Returns 501 Not Implemented during Track 1.
       operationId: listFxRates
       security:
         - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: List of exchange rates.
+          description: Reserved for Track 2 implementation.
+        '501':
+          description: Endpoint disabled in Track 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
-      summary: Upsert FX Exchange Rate
-      description: Configures exchange rate for currency pair.
+      summary: Upsert FX Exchange Rate (Track 1 Disabled)
+      description: Returns 501 Not Implemented during Track 1.
       operationId: upsertFxRate
       security:
         - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Rate saved successfully.
+          description: Reserved for Track 2 implementation.
+        '501':
+          description: Endpoint disabled in Track 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/fx-rates/revalue:
+  /api/v1/organizations/{organizationId}/fx-rates/revalue:
     post:
-      summary: Period-End FX Revaluation
-      description: Calculates unrealized foreign exchange gain/loss for foreign currency balances.
-      operationId: revalueFx
+      summary: Revalue FX Balances (Track 1 Disabled)
+      description: Returns 501 Not Implemented during Track 1.
+      operationId: revalueFxBalances
       security:
         - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Revaluation completed.
+          description: Reserved for Track 2 implementation.
+        '501':
+          description: Endpoint disabled in Track 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/organizations/{organizationId}/members:
     get:
-      summary: List Organization Members & RBAC Roles
-      description: Retrieves members and assigned roles (Admin, Controller, Accountant, Auditor).
+      summary: List Organization Members & Roles
+      description: Retrieves members and canonical roles (OWNER, ADMINISTRATOR, ACCOUNTANT, ANALYST, AUDITOR_VIEWER).
       operationId: listOrganizationMembers
       security:
         - BearerAuth: []
@@ -856,6 +976,111 @@ paths:
       responses:
         '200':
           description: Organization members list.
+        '401':
+          description: Unauthenticated.
+        '403':
+          description: Forbidden.
+    post:
+      summary: Add Organization Member
+      description: Adds a new user to organization with a canonical role.
+      operationId: addOrganizationMember
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                role:
+                  type: string
+                  enum: [OWNER, ADMINISTRATOR, ACCOUNTANT, ANALYST, AUDITOR_VIEWER]
+      responses:
+        '201':
+          description: Member added successfully.
+        '400':
+          description: Invalid input or role.
+        '403':
+          description: Permission denied.
+
+  /api/v1/organizations/{organizationId}/members/{memberId}/role:
+    put:
+      summary: Update Member Role
+      description: Updates the canonical role of an existing organization member.
+      operationId: updateMemberRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [OWNER, ADMINISTRATOR, ACCOUNTANT, ANALYST, AUDITOR_VIEWER]
+      responses:
+        '200':
+          description: Role updated successfully.
+        '400':
+          description: Invalid input or last owner demotion prohibited.
+        '403':
+          description: Permission denied.
+
+  /api/v1/organizations/{organizationId}/members/{memberId}:
+    delete:
+      summary: Remove Member
+      description: Removes a member from an organization.
+      operationId: removeMember
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member removed successfully.
+        '400':
+          description: Cannot remove last owner.
+        '403':
+          description: Permission denied.
 
 components:
   securitySchemes:

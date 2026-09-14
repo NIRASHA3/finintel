@@ -5,49 +5,47 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/NIRASHA3/finintel/services/api/internal/platform/oidc"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRequireAuth_DevModeFallback(t *testing.T) {
-	middleware := RequireAuth(nil, true)
+func TestRequireAuth_MissingHeader(t *testing.T) {
+	validator := oidc.NewValidator(oidc.ValidatorConfig{
+		IssuerURL: "https://auth.example.com",
+		Audience:  "test-audience",
+	})
+	mw := RequireAuth(validator)
 
-	var retrievedUser UserContext
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := GetUserFromContext(r.Context())
-		assert.True(t, ok)
-		retrievedUser = u
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := middleware(nextHandler)
+	handler := mw(nextHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "dev-user@finintel.io", retrievedUser.Email)
-	assert.Equal(t, "Development Admin", retrievedUser.FullName)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
-func TestRequireAuth_CustomDevToken(t *testing.T) {
-	middleware := RequireAuth(nil, true)
+func TestRequireAuth_InvalidToken(t *testing.T) {
+	validator := oidc.NewValidator(oidc.ValidatorConfig{
+		IssuerURL: "https://auth.example.com",
+		Audience:  "test-audience",
+	})
+	mw := RequireAuth(validator)
 
-	var retrievedUser UserContext
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := GetUserFromContext(r.Context())
-		assert.True(t, ok)
-		retrievedUser = u
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := middleware(nextHandler)
+	handler := mw(nextHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
-	req.Header.Set("Authorization", "Bearer dev-token-cfo@acme.com")
+	req.Header.Set("Authorization", "Bearer invalid.jwt.token")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "cfo@acme.com", retrievedUser.Email)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }

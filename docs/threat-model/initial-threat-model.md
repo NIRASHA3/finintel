@@ -1,12 +1,12 @@
-# Initial Threat Model (STRIDE Framework)
+# Initial Threat Model (STRIDE Framework) - Track 1 Security Hardened
 
 ## 1. Overview & System Assets
-FinIntel processes critical financial records, transaction histories, user profile mappings, and machine learning models. This document establishes the threat model using the STRIDE framework to identify security risks and mandatory mitigations.
+FinIntel processes critical financial records, transaction histories, user profile mappings, and executive dashboards. This document establishes the threat model using the STRIDE framework to identify security risks and mandatory Track 1 security hardening mitigations.
 
 ### Core Assets to Protect
 1. **General Ledger Data**: Posted journal entries, chart of accounts, financial reports (High Confidentiality, High Integrity).
 2. **Tenant Isolation Boundary**: Cross-tenant data separation (Critical Integrity & Confidentiality).
-3. **Identity Tokens**: OIDC ID tokens, access JWTs, service keys (Critical Confidentiality).
+3. **Identity Tokens & Session Secret**: OIDC ID tokens, access JWTs, BFF encrypted session tokens, CSRF tokens (Critical Confidentiality).
 4. **Audit Logs**: Immutable history of system and financial mutations (High Integrity & Non-Repudiation).
 
 ---
@@ -14,50 +14,50 @@ FinIntel processes critical financial records, transaction histories, user profi
 ## 2. STRIDE Threat Analysis & Mitigations
 
 ### 2.1 Spoofing (Identity Theft & Session Hijacking)
-- **Threat**: Attacker impersonates an organization user or system worker using forged tokens or stolen credentials.
+- **Threat**: Attacker impersonates an organization user or system worker using forged tokens, stolen cookies, or header injection.
 - **Impact**: Unauthorized access to tenant financial data.
 - **Mitigation**:
-  - Delegate authentication to an external OIDC Identity Provider (Auth0/Keycloak/Clerk). Passwords are never stored in PostgreSQL.
-  - Verify OIDC access tokens on every API request checking signature against IdP JWKS, issuer (`iss`), audience (`aud`), and token expiration (`exp`).
-  - Map user identity using composite uniqueness of issuer plus subject (`(identity_provider_issuer, external_subject_id)`).
+  - Delegate authentication to an external OIDC Identity Provider (Auth0/Keycloak/Clerk). Cryptographically verify OIDC JWT signature, issuer, audience, expiry, `nbf`, and non-empty `sub`.
+  - Next.js BFF issues opaque 32-byte session tokens in `__Host-finintel_session` (`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`). Tokens in browser storage, URL params, or JavaScript are strictly prohibited.
+  - BFF encrypts access, refresh, and ID tokens using AES-256-GCM with unique 12-byte random nonces and AAD binding (`sessionID:userID:tokenType:keyVersion`).
+  - Core API connection pool role executes `SET ROLE finintel_app; SELECT current_user, session_user;` on every new connection. User identity is derived in PostgreSQL from `app.current_user_id`.
 
 ### 2.2 Tampering (Data Modification & Financial Corruption)
-- **Threat**: Attacker modifies financial journal entries, bypasses debit/credit balance rules, or tampers with accounting period locks.
+- **Threat**: Attacker modifies financial journal entries, tampers with member roles, or bypasses debit/credit balance rules.
 - **Impact**: Inaccurate ledger, fraudulent financial reporting, corrupted audit records.
 - **Mitigation**:
-  - Go API enforces database transaction isolation (`SERIALIZABLE`) and debit/credit equality checks ($\sum \text{Debits} = \sum \text{Credits}$).
-  - Immutable database constraints: posted entries cannot be UPDATED or DELETED. Reversal entries are required.
-  - Financial mutations and corresponding audit log insertions execute **atomically** in the same PostgreSQL transaction block (`BEGIN ... COMMIT`).
+  - Direct DML (`INSERT`, `UPDATE`, `DELETE`) on `users`, `organizations`, and `organization_memberships` is revoked from `finintel_app`. Mutations run exclusively via `SECURITY DEFINER` stored functions owned by `finintel_security_definer` with fixed `search_path = pg_catalog, public, pg_temp`.
+  - Immutable database constraints: posted journal entries cannot be UPDATED or DELETED. Reversal entries are required.
+  - Per-organization advisory locking (`pg_advisory_xact_lock`) prevents race conditions during member role updates and ensures the final `OWNER` cannot be demoted or removed under concurrent requests.
+  - CSRF protection: state-changing BFF operations require header `X-FinIntel-CSRF` matching constant-time SHA-256 hashes (`crypto.timingSafeEqual`).
 
 ### 2.3 Repudiation (Denial of Action)
 - **Threat**: Malicious actor posts invalid financial entries or alters configuration and denies performing the action.
 - **Impact**: Inability to attribute financial fraud or unauthorized mutations.
 - **Mitigation**:
-  - Mandatory audit log generated for every mutation capturing `organization_id`, `actor_id` (mapped to OIDC issuer + subject), `actor_type` (`USER`, `SYSTEM_WORKER`, `SERVICE_ACTOR`), `timestamp_utc`, `correlation_id`, and `changes` JSON delta.
-  - For service actors and `System Worker` operations where `actor_id` does not reference a human user, `actor_type`, service actor identity, and correlation ID ensure complete traceability without weakening audit requirements.
-  - Append-only audit table prevents record modification or deletion.
+  - Audit log table `audit_logs` is append-only with forced RLS. Direct `UPDATE` and `DELETE` privileges are revoked from `finintel_app`.
+  - Privileged functions derive actor identity directly from `app.current_user_id` context and require correlation ID.
 
 ### 2.4 Information Disclosure (Data Leakage)
-- **Threat**: Tenant A accesses Tenant B's ledger data via parameter tampering or unauthenticated endpoints.
+- **Threat**: Tenant A accesses Tenant B's ledger data via parameter tampering, path traversal, or unauthenticated endpoints.
 - **Impact**: Severe breach of tenant confidentiality and regulatory violation.
 - **Mitigation**:
-  - Enforce `WHERE organization_id = $1` on 100% of backend database queries.
-  - Enforce PostgreSQL Row-Level Security (RLS) as defense-in-depth on all tenant tables, failing closed if organization context is missing. Production DB connection role must not be a superuser, table owner, or possess `BYPASSRLS`. Automated cross-tenant RLS integration tests are mandatory.
-  - Enforce composite tenant-safe foreign key constraints `(organization_id, id)` across all tenant-scoped database entities (including self-references and cross-entity references).
-  - Go API middleware validates user membership in the target `organization_id` before controller execution.
-  - Redact authorization tokens, financial payloads, and PII from application logs.
+  - Row-Level Security (RLS) is ENABLED and FORCED on all 9 tenant tables (`organizations`, `users`, `organization_memberships`, `accounts`, `journal_entries`, `journal_entry_lines`, `staged_transactions`, `fiscal_periods`, `audit_logs`).
+  - Tenant business tables enforce non-recursive authorization: `row.organization_id = app.current_organization_id` AND active membership exists in `organization_memberships` for `app.current_user_id`.
+  - Next.js proxy route applies single-decode path validation, rejecting double encoding (`%25`), encoded slashes (`%2F`, `%5C`), control characters, null bytes, and dot segments (`..`).
+  - Next.js proxy strips browser `Authorization`, `X-User-ID`, `X-User-Role`, and `X-Organization-ID` headers before proxying requests upstream.
 
 ### 2.5 Denial of Service (Resource Exhaustion)
-- **Threat**: Malicious user submits massive CSV files or floods posting endpoints to exhaust API or database connections.
+- **Threat**: Malicious user submits massive payloads or floods endpoints to exhaust API or database connections.
 - **Impact**: System slowdown or unavailability for all tenants.
 - **Mitigation**:
-  - Rate limiting per organization and IP address on Go API router.
-  - Restrict CSV file upload size to 50MB and offload parsing to background worker queue (`services/worker`).
-  - Configure PostgreSQL max connection bounds (`pgxpool`).
+  - Rate limiting (100 req/sec, burst 200) on Go API router and response buffering limit.
+  - Health endpoint `/health/live` returns 200; `/health/ready` verifies PostgreSQL connection and returns 503 on dependency outage without crashing process.
 
 ### 2.6 Elevation of Privilege (Unauthorized Role Access)
-- **Threat**: User with `Analyst` or `Auditor` role calls posting endpoints directly to create journal entries.
+- **Threat**: User with `AUDITOR_VIEWER` or `ANALYST` role calls posting endpoints directly to create journal entries or alter member roles.
 - **Impact**: Unauthorized financial postings.
 - **Mitigation**:
-  - Enforce Role-Based Access Control (RBAC) in Go API backend controllers for every route.
-  - Assert membership role from `organization_memberships` resolved via the validated OIDC issuer (`iss`) and subject claim (`sub`).
+  - Canonical 5 roles enforced: `OWNER`, `ADMINISTRATOR`, `ACCOUNTANT`, `ANALYST`, `AUDITOR_VIEWER`.
+  - Go Chi router enforces exact method-plus-route RBAC table using database-derived role context attached during `TenantScopedTxMiddleware`. Missing or invalid role context returns 403.
+  - Inside PostgreSQL, `ADMINISTRATOR` is explicitly restricted from assigning, modifying, or removing `OWNER` or `ADMINISTRATOR` roles.

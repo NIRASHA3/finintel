@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -26,6 +27,22 @@ func NewPostgresPool(ctx context.Context, connString string, maxConns int32) (*P
 
 	if maxConns > 0 {
 		config.MaxConns = maxConns
+	}
+
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET ROLE finintel_app;")
+		if err != nil {
+			return fmt.Errorf("failed to execute SET ROLE finintel_app on connection: %w", err)
+		}
+		var currentUser, sessionUser string
+		err = conn.QueryRow(ctx, "SELECT current_user, session_user;").Scan(&currentUser, &sessionUser)
+		if err != nil {
+			return fmt.Errorf("failed to verify current_user on connection: %w", err)
+		}
+		if currentUser != "finintel_app" {
+			return fmt.Errorf("connection current_user is '%s', expected 'finintel_app'", currentUser)
+		}
+		return nil
 	}
 
 	initCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,8 +34,19 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
+}
+
 func (s *Service) ScanAnomalies(ctx context.Context, orgID string) ([]Anomaly, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -54,7 +66,7 @@ func (s *Service) ScanAnomalies(ctx context.Context, orgID string) ([]Anomaly, e
 		)
 		ORDER BY created_at DESC;
 	`
-	rows, err := s.db.Query(ctx, dupQuery, orgID)
+	rows, err := db.Query(ctx, dupQuery, orgID)
 	if err == nil {
 		for rows.Next() {
 			var id, ref, payee string
@@ -85,7 +97,7 @@ func (s *Service) ScanAnomalies(ctx context.Context, orgID string) ([]Anomaly, e
 		WHERE organization_id = $1
 		ORDER BY created_at DESC;
 	`
-	jRows, err := s.db.Query(ctx, outlierQuery, orgID)
+	jRows, err := db.Query(ctx, outlierQuery, orgID)
 	if err == nil {
 		var totalSum int64
 		var count int64
@@ -140,7 +152,7 @@ func (s *Service) ScanAnomalies(ctx context.Context, orgID string) ([]Anomaly, e
 		WHERE organization_id = $1 AND (suggested_category IS NULL OR suggested_category = '' OR suggested_category = 'Uncategorized')
 		ORDER BY created_at DESC;
 	`
-	uRows, err := s.db.Query(ctx, unmappedQuery, orgID)
+	uRows, err := db.Query(ctx, unmappedQuery, orgID)
 	if err == nil {
 		for uRows.Next() {
 			var id, payee string

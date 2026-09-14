@@ -2,7 +2,6 @@ package organization
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,6 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
 var (
@@ -24,7 +25,7 @@ type Organization struct {
 	Name                 string    `json:"name"`
 	BaseCurrency         string    `json:"baseCurrency"`
 	FiscalYearStartMonth int       `json:"fiscalYearStartMonth"`
-	Role                 string    `json:"role"`
+	Role                 string    `json:"role,omitempty"`
 	CreatedAt            time.Time `json:"createdAt"`
 }
 
@@ -40,6 +41,16 @@ type Service struct {
 
 func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
+}
+
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
 }
 
 func (s *Service) CreateOrganization(ctx context.Context, userID string, correlationID string, params CreateOrganizationParams) (*Organization, error) {
@@ -58,84 +69,46 @@ func (s *Service) CreateOrganization(ctx context.Context, userID string, correla
 		fiscalMonth = 1
 	}
 
-	if s.db == nil {
+	if correlationID == "" {
+		correlationID = "req-create-org"
+	}
+
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
-
+	query := `
+		SELECT id, name, base_currency, fiscal_year_start_month, created_at
+		FROM public.fn_create_organization_with_owner($1, $2, $3, $4);
+	`
 	var org Organization
 	org.Role = "OWNER"
 
-	// 1. Insert organization
-	insertOrgQuery := `
-		INSERT INTO organizations (name, base_currency, fiscal_year_start_month)
-		VALUES ($1, $2, $3)
-		RETURNING id, name, base_currency, fiscal_year_start_month, created_at;
-	`
-	err = tx.QueryRow(ctx, insertOrgQuery, name, baseCurrency, fiscalMonth).Scan(
+	err := db.QueryRow(ctx, query, name, baseCurrency, fiscalMonth, correlationID).Scan(
 		&org.ID, &org.Name, &org.BaseCurrency, &org.FiscalYearStartMonth, &org.CreatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert organization: %w", err)
-	}
-
-	// 2. Insert membership (OWNER)
-	insertMemberQuery := `
-		INSERT INTO organization_memberships (organization_id, user_id, role)
-		VALUES ($1, $2, 'OWNER');
-	`
-	_, err = tx.Exec(ctx, insertMemberQuery, org.ID, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to insert organization membership: %w", err)
-	}
-
-	// 3. Insert audit log atomically in same transaction
-	if correlationID == "" {
-		correlationID = "sys-onboarding-" + org.ID[:8]
-	}
-	changesJSON, _ := json.Marshal(map[string]interface{}{
-		"name":                 org.Name,
-		"base_currency":        org.BaseCurrency,
-		"fiscal_start_month":   org.FiscalYearStartMonth,
-		"initial_owner_userID": userID,
-	})
-
-	insertAuditQuery := `
-		INSERT INTO audit_logs (organization_id, actor_id, actor_type, correlation_id, entity_type, entity_id, action, changes)
-		VALUES ($1, $2, 'USER', $3, 'ORGANIZATION', $1, 'CREATE', $4);
-	`
-	_, err = tx.Exec(ctx, insertAuditQuery, org.ID, userID, correlationID, changesJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to record organization audit log: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit organization transaction: %w", err)
+		return nil, fmt.Errorf("failed to execute fn_create_organization_with_owner: %w", err)
 	}
 
 	return &org, nil
 }
 
 func (s *Service) ListOrganizationsForUser(ctx context.Context, userID string) ([]Organization, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
 	query := `
 		SELECT o.id, o.name, o.base_currency, o.fiscal_year_start_month, m.role, o.created_at
-		FROM organizations o
-		JOIN organization_memberships m ON o.id = m.organization_id
-		WHERE m.user_id = $1
+		FROM public.organizations o
+		JOIN public.organization_memberships m ON o.id = m.organization_id
+		WHERE m.user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid
 		ORDER BY o.created_at DESC;
 	`
-	rows, err := s.db.Query(ctx, query, userID)
+	rows, err := db.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query user organizations: %w", err)
 	}
@@ -158,18 +131,19 @@ func (s *Service) ListOrganizationsForUser(ctx context.Context, userID string) (
 }
 
 func (s *Service) GetOrganizationByID(ctx context.Context, orgID string, userID string) (*Organization, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
 	query := `
 		SELECT o.id, o.name, o.base_currency, o.fiscal_year_start_month, m.role, o.created_at
-		FROM organizations o
-		JOIN organization_memberships m ON o.id = m.organization_id
-		WHERE o.id = $1 AND m.user_id = $2;
+		FROM public.organizations o
+		JOIN public.organization_memberships m ON o.id = m.organization_id
+		WHERE o.id = $1 AND m.user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid;
 	`
 	var o Organization
-	err := s.db.QueryRow(ctx, query, orgID, userID).Scan(&o.ID, &o.Name, &o.BaseCurrency, &o.FiscalYearStartMonth, &o.Role, &o.CreatedAt)
+	err := db.QueryRow(ctx, query, orgID).Scan(&o.ID, &o.Name, &o.BaseCurrency, &o.FiscalYearStartMonth, &o.Role, &o.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrOrganizationFound

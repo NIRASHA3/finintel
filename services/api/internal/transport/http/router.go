@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -16,35 +17,40 @@ import (
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/closing"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/dashboard"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/export"
-	"github.com/NIRASHA3/finintel/services/api/internal/domain/fx"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/ledger"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/organization"
-	"github.com/NIRASHA3/finintel/services/api/internal/domain/reconciliation"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/reports"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/reversal"
 	"github.com/NIRASHA3/finintel/services/api/internal/domain/staging"
-	"github.com/NIRASHA3/finintel/services/api/internal/domain/webhook"
+	"github.com/NIRASHA3/finintel/services/api/internal/platform/oidc"
 	customMiddleware "github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
 func NewRouter(db PingerProvider, logger *slog.Logger) http.Handler {
 	defaultCfg := &config.Config{
 		CorsAllowedOrigins: []string{"http://localhost:3000"},
-		AuthDevMode:        true,
+		OIDCIssuerURL:      "https://auth.finintel.internal",
+		OIDCAudience:       "finintel-api",
+		OIDCJwksURL:        "https://auth.finintel.internal/.well-known/jwks.json",
 	}
 	return NewRouterWithConfig(db, logger, defaultCfg)
+}
+
+func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotImplemented)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":   "NOT_IMPLEMENTED",
+		"message": "Feature disabled in Track 1 security remediation",
+	})
 }
 
 func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Config) http.Handler {
 	r := chi.NewRouter()
 
 	allowedOrigins := []string{"http://localhost:3000"}
-	devMode := true
-	if cfg != nil {
-		if len(cfg.CorsAllowedOrigins) > 0 {
-			allowedOrigins = cfg.CorsAllowedOrigins
-		}
-		devMode = cfg.AuthDevMode
+	if cfg != nil && len(cfg.CorsAllowedOrigins) > 0 {
+		allowedOrigins = cfg.CorsAllowedOrigins
 	}
 
 	// Middleware pipeline:
@@ -53,7 +59,6 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	r.Use(customMiddleware.CORS(allowedOrigins))
 	r.Use(customMiddleware.SlogLogger(logger))
 	r.Use(customMiddleware.RateLimit(100, 200))
-	r.Use(customMiddleware.RBACContextMiddleware)
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	healthHandler := NewHealthHandler(db)
@@ -70,6 +75,24 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 		pool = p
 	}
 
+	issuerURL := ""
+	audience := ""
+	jwksURL := ""
+	var allowedAlgs []string
+	if cfg != nil {
+		issuerURL = cfg.OIDCIssuerURL
+		audience = cfg.OIDCAudience
+		jwksURL = cfg.OIDCJwksURL
+		allowedAlgs = cfg.OIDCAllowedAlgs
+	}
+
+	oidcValidator := oidc.NewValidator(oidc.ValidatorConfig{
+		IssuerURL:   issuerURL,
+		Audience:    audience,
+		JwksURL:     jwksURL,
+		AllowedAlgs: allowedAlgs,
+	})
+
 	orgService := organization.NewService(pool)
 	accService := account.NewService(pool)
 	ledgerService := ledger.NewService(pool)
@@ -81,9 +104,6 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	anomalyService := anomaly.NewService(pool)
 	dashboardService := dashboard.NewService(pool)
 	exportService := export.NewService(pool)
-	recService := reconciliation.NewService(pool)
-	webhookService := webhook.NewService(pool)
-	fxService := fx.NewService(pool)
 
 	userHandler := NewUserHandler()
 	orgHandler := NewOrganizationHandler(orgService)
@@ -97,107 +117,113 @@ func NewRouterWithConfig(db PingerProvider, logger *slog.Logger, cfg *config.Con
 	anomalyHandler := NewAnomalyHandler(anomalyService)
 	dashboardHandler := NewDashboardHandler(dashboardService)
 	exportHandler := NewExportHandler(exportService)
-	recHandler := NewReconciliationHandler(recService)
-	webhookHandler := NewWebhookHandler(webhookService)
-	fxHandler := NewFXHandler(fxService)
 	memberHandler := NewMemberHandler()
+
+	allFiveRoles := []string{"OWNER", "ADMINISTRATOR", "ACCOUNTANT", "ANALYST", "AUDITOR_VIEWER"}
+	adminOwnerOnly := []string{"OWNER", "ADMINISTRATOR"}
+	accountAndJournalMutate := []string{"OWNER", "ADMINISTRATOR", "ACCOUNTANT"}
+	stagedList := []string{"OWNER", "ADMINISTRATOR", "ACCOUNTANT", "ANALYST"}
+	stagedMutate := []string{"OWNER", "ADMINISTRATOR", "ACCOUNTANT"}
+	fiscalPeriodMutate := []string{"OWNER", "ADMINISTRATOR"}
+	dashboardAndAnomalies := []string{"OWNER", "ADMINISTRATOR", "ACCOUNTANT", "ANALYST"}
+	ledgerExport := []string{"OWNER", "ADMINISTRATOR", "ACCOUNTANT", "AUDITOR_VIEWER"}
+	auditLogsAndExport := []string{"OWNER", "ADMINISTRATOR", "AUDITOR_VIEWER"}
 
 	// API v1 Protected Routes
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(customMiddleware.RequireAuth(pool, devMode))
+		r.Use(customMiddleware.RequireAuth(oidcValidator))
+		r.Use(customMiddleware.UserScopedTxMiddleware(pool))
 
 		r.Get("/users/me", userHandler.GetCurrentUser)
-
-		// Bank Reconciliation routes
-		r.Post("/reconciliations/match", recHandler.AutoMatch)
-
-		// Webhook routes
-		r.Route("/webhooks/subscriptions", func(r chi.Router) {
-			r.Get("/", webhookHandler.ListSubscriptions)
-			r.Post("/", webhookHandler.CreateSubscription)
-			r.Delete("/{id}", webhookHandler.DeleteSubscription)
-		})
-
-		// Foreign Exchange Rate & Revaluation routes
-		r.Route("/fx-rates", func(r chi.Router) {
-			r.Get("/", fxHandler.ListRates)
-			r.Post("/", fxHandler.UpsertRate)
-			r.Post("/revalue", fxHandler.Revalue)
-		})
 
 		r.Route("/organizations", func(r chi.Router) {
 			r.Post("/", orgHandler.CreateOrganization)
 			r.Get("/", orgHandler.ListOrganizations)
 
-			// Organization Members / Roles routes
-			r.Route("/{id}/members", func(r chi.Router) {
-				r.Get("/", memberHandler.ListMembers)
-				r.Put("/{memberId}/role", memberHandler.UpdateMemberRole)
-			})
+			// Tenant-scoped routes under /{organizationId}
+			r.Route("/{organizationId}", func(r chi.Router) {
+				r.Use(customMiddleware.TenantScopedTxMiddleware)
 
-			// Organization-scoped Account routes
-			r.Route("/{organizationId}/accounts", func(r chi.Router) {
-				r.Get("/", accHandler.ListAccounts)
-				r.Post("/", accHandler.CreateAccount)
-				r.Post("/seed", accHandler.SeedDefaultAccounts)
-			})
+				r.With(customMiddleware.RequireRole(allFiveRoles...)).Get("/", orgHandler.GetOrganization)
 
-			// Organization-scoped Ledger routes
-			r.Route("/{organizationId}/journal-entries", func(r chi.Router) {
-				r.Get("/", ledgerHandler.ListJournalEntries)
-				r.Post("/", ledgerHandler.PostJournalEntry)
-				r.Get("/{entryId}", ledgerHandler.GetJournalEntry)
-				r.Post("/{entryId}/reverse", reversalHandler.PostReversalEntry)
-			})
+				// Organization Members routes
+				r.Route("/members", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(adminOwnerOnly...)).Get("/", memberHandler.ListMembers)
+					r.With(customMiddleware.RequireRole(adminOwnerOnly...)).Post("/", memberHandler.AddMember)
+					r.With(customMiddleware.RequireRole(adminOwnerOnly...)).Put("/{memberId}/role", memberHandler.UpdateMemberRole)
+					r.With(customMiddleware.RequireRole(adminOwnerOnly...)).Delete("/{memberId}", memberHandler.RemoveMember)
+				})
 
-			// Organization-scoped Staged Transaction routes
-			r.Route("/{organizationId}/staged-transactions", func(r chi.Router) {
-				r.Get("/", stagingHandler.ListStagedTransactions)
-				r.Post("/upload", stagingHandler.UploadCSV)
-				r.Post("/{id}/approve", stagingHandler.ApproveStagedTransaction)
-				r.Post("/{id}/reject", stagingHandler.RejectStagedTransaction)
-				r.Post("/batch-post", stagingHandler.BatchPostApprovedTransactions)
-			})
+				// Accounts routes
+				r.Route("/accounts", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(allFiveRoles...)).Get("/", accHandler.ListAccounts)
+					r.With(customMiddleware.RequireRole(accountAndJournalMutate...)).Post("/", accHandler.CreateAccount)
+					r.With(customMiddleware.RequireRole(adminOwnerOnly...)).Post("/seed", accHandler.SeedDefaultAccounts)
+				})
 
-			// Organization-scoped Financial Reports routes
-			r.Route("/{organizationId}/reports", func(r chi.Router) {
-				r.Get("/trial-balance", reportsHandler.GetTrialBalance)
-				r.Get("/income-statement", reportsHandler.GetIncomeStatement)
-				r.Get("/balance-sheet", reportsHandler.GetBalanceSheet)
-			})
+				// Ledger routes
+				r.Route("/journal-entries", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(allFiveRoles...)).Get("/", ledgerHandler.ListJournalEntries)
+					r.With(customMiddleware.RequireRole(accountAndJournalMutate...)).Post("/", ledgerHandler.PostJournalEntry)
+					r.With(customMiddleware.RequireRole(allFiveRoles...)).Get("/{entryId}", ledgerHandler.GetJournalEntry)
+					r.With(customMiddleware.RequireRole(accountAndJournalMutate...)).Post("/{entryId}/reverse", reversalHandler.PostReversalEntry)
+				})
 
-			// Organization-scoped Fiscal Period Closing routes
-			r.Route("/{organizationId}/fiscal-periods", func(r chi.Router) {
-				r.Get("/", closingHandler.ListFiscalPeriods)
-				r.Post("/generate", closingHandler.GenerateFiscalPeriods)
-				r.Post("/{periodId}/close", closingHandler.ClosePeriod)
-				r.Post("/{periodId}/lock", closingHandler.LockPeriod)
-				r.Post("/{periodId}/unlock", closingHandler.UnlockPeriod)
-			})
+				// Staged Transactions routes
+				r.Route("/staged-transactions", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(stagedList...)).Get("/", stagingHandler.ListStagedTransactions)
+					r.With(customMiddleware.RequireRole(stagedMutate...)).Post("/upload", stagingHandler.UploadCSV)
+					r.With(customMiddleware.RequireRole(stagedMutate...)).Post("/{id}/approve", stagingHandler.ApproveStagedTransaction)
+					r.With(customMiddleware.RequireRole(stagedMutate...)).Post("/{id}/reject", stagingHandler.RejectStagedTransaction)
+					r.With(customMiddleware.RequireRole(stagedMutate...)).Post("/batch-post", stagingHandler.BatchPostApprovedTransactions)
+				})
 
-			// Organization-scoped Executive Dashboard routes
-			r.Route("/{organizationId}/dashboard", func(r chi.Router) {
-				r.Get("/metrics", dashboardHandler.GetDashboardMetrics)
-			})
+				// Reports routes
+				r.Route("/reports", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(allFiveRoles...)).Get("/trial-balance", reportsHandler.GetTrialBalance)
+					r.With(customMiddleware.RequireRole(allFiveRoles...)).Get("/income-statement", reportsHandler.GetIncomeStatement)
+					r.With(customMiddleware.RequireRole(allFiveRoles...)).Get("/balance-sheet", reportsHandler.GetBalanceSheet)
+				})
 
-			// Organization-scoped Anomaly routes
-			r.Route("/{organizationId}/anomalies", func(r chi.Router) {
-				r.Get("/", anomalyHandler.ListAnomalies)
-			})
+				// Fiscal Period Closing routes
+				r.Route("/fiscal-periods", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(allFiveRoles...)).Get("/", closingHandler.ListFiscalPeriods)
+					r.With(customMiddleware.RequireRole(fiscalPeriodMutate...)).Post("/generate", closingHandler.GenerateFiscalPeriods)
+					r.With(customMiddleware.RequireRole(fiscalPeriodMutate...)).Post("/{periodId}/close", closingHandler.ClosePeriod)
+					r.With(customMiddleware.RequireRole(fiscalPeriodMutate...)).Post("/{periodId}/lock", closingHandler.LockPeriod)
+					r.With(customMiddleware.RequireRole(fiscalPeriodMutate...)).Post("/{periodId}/unlock", closingHandler.UnlockPeriod)
+				})
 
-			// Organization-scoped Data Export routes
-			r.Route("/{organizationId}/export", func(r chi.Router) {
-				r.Get("/ledger", exportHandler.ExportGeneralLedgerCSV)
-				r.Get("/audit", exportHandler.ExportAuditLogsCSV)
-			})
+				// Dashboard routes
+				r.Route("/dashboard", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(dashboardAndAnomalies...)).Get("/metrics", dashboardHandler.GetDashboardMetrics)
+				})
 
-			// Organization-scoped Audit Trail routes
-			r.Route("/{organizationId}/audit-logs", func(r chi.Router) {
-				r.Get("/", auditHandler.ListAuditLogs)
-			})
+				// Anomaly routes
+				r.Route("/anomalies", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(dashboardAndAnomalies...)).Get("/", anomalyHandler.ListAnomalies)
+				})
 
-			// Get Organization by ID (leaf route)
-			r.Get("/{organizationId}", orgHandler.GetOrganization)
+				// Data Export routes
+				r.Route("/export", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(ledgerExport...)).Get("/ledger", exportHandler.ExportGeneralLedgerCSV)
+					r.With(customMiddleware.RequireRole(auditLogsAndExport...)).Get("/audit", exportHandler.ExportAuditLogsCSV)
+				})
+
+				// Audit Trail routes
+				r.Route("/audit-logs", func(r chi.Router) {
+					r.With(customMiddleware.RequireRole(auditLogsAndExport...)).Get("/", auditHandler.ListAuditLogs)
+				})
+
+				// Moved Track 3 / disabled endpoints (return 501 after auth & tenant membership check)
+				r.Post("/reconciliations/match", notImplementedHandler)
+				r.Get("/webhooks/subscriptions", notImplementedHandler)
+				r.Post("/webhooks/subscriptions", notImplementedHandler)
+				r.Delete("/webhooks/subscriptions/{id}", notImplementedHandler)
+				r.Get("/fx-rates", notImplementedHandler)
+				r.Post("/fx-rates", notImplementedHandler)
+				r.Post("/fx-rates/revalue", notImplementedHandler)
+			})
 		})
 	})
 

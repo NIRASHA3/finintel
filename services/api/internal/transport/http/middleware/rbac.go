@@ -1,35 +1,23 @@
 package middleware
 
 import (
-	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 )
 
-const RoleContextKey contextKey = "user_role"
-
-func RBACContextMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		role := r.Header.Get("X-User-Role")
-		if role == "" {
-			role = "Admin" // Default to Admin for backwards compatibility
-		}
-		ctx := context.WithValue(r.Context(), RoleContextKey, role)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
+// RequireRole checks that the database-derived role attached to request context matches one of allowedRoles.
 func RequireRole(allowedRoles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userRole, ok := r.Context().Value(RoleContextKey).(string)
 			if !ok || userRole == "" {
-				userRole = "Admin"
-			}
-
-			// Admin role always bypasses checks
-			if strings.EqualFold(userRole, "Admin") {
-				next.ServeHTTP(w, r)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error":   "FORBIDDEN",
+					"message": "Missing organization role context",
+				})
 				return
 			}
 
@@ -44,7 +32,10 @@ func RequireRole(allowedRoles ...string) func(http.Handler) http.Handler {
 			if !allowed {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
-				_, _ = w.Write([]byte(`{"error":"access_denied","message":"your assigned role ('` + userRole + `') does not have permission to execute this operation"}`))
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error":   "FORBIDDEN",
+					"message": "Assigned role '" + userRole + "' does not have permission to execute this operation",
+				})
 				return
 			}
 
