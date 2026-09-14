@@ -3,38 +3,74 @@
 @tailwind utilities;
 
 :root {
-  --color-brand-navy: #0f172a;
-  --color-brand-teal: #0d9488;
-  --color-brand-emerald: #059669;
-  --color-brand-indigo: #4f46e5;
-  --color-surface-light: #f8fafc;
-  --color-surface-card: #ffffff;
+  --color-brand-navy: #001524;
+  --color-brand-teal: #15616D;
+  --color-brand-orange: #FF7D00;
+  --color-brand-surface: #F8F9FA;
+  --color-brand-error: #BA1A1A;
+  --color-surface-container: #EDEEEF;
+  --color-surface-card: #FFFFFF;
 }
 
-body {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
+@layer base {
+  body {
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #F8F9FA;
+    color: #001524;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Accessible focus indicators across the application */
+  *:focus-visible {
+    outline: 2px solid #15616D;
+    outline-offset: 2px;
+  }
+
+  /* Interactive minimum tap target on touch */
+  @media (pointer: coarse) {
+    button, a, input, select, textarea {
+      min-height: 44px;
+    }
+  }
 }
 
-.tnum {
+/* Tabular figures for financial numbers */
+.tnum, [data-tabular="true"] {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
+/* Accessible skip to content */
 .skip-to-content {
   position: absolute;
-  top: -40px;
-  left: 0;
-  background: #059669;
-  color: white;
-  padding: 8px 16px;
-  z-index: 100;
+  top: -60px;
+  left: 1rem;
+  background: #001524;
+  color: #FFFFFF;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 9999;
   transition: top 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.skip-to-content:focus {
-  top: 0;
+.skip-to-content:focus-visible {
+  top: 1rem;
+  outline: 2px solid #FF7D00;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

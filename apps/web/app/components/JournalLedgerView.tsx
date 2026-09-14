@@ -9,9 +9,18 @@ import {
   JournalEntry,
   Account,
 } from "../../lib/api-client";
+import { useOrganization } from "../../lib/context/OrganizationContext";
+import { useToast } from "../../lib/context/ToastContext";
+import {
+  CurrencyAmount,
+  StatusBadge,
+  Modal,
+  FormField,
+  EmptyState,
+} from "./ui";
 
 interface Props {
-  organizationId: string;
+  organizationId?: string;
 }
 
 interface FormLine {
@@ -21,7 +30,12 @@ interface FormLine {
   memo: string;
 }
 
-export function JournalLedgerView({ organizationId }: Props) {
+export function JournalLedgerView({ organizationId: propOrgId }: Props) {
+  const { activeOrg } = useOrganization();
+  const organizationId = propOrgId || activeOrg?.id || "";
+  const currency = activeOrg?.baseCurrency || "USD";
+  const toast = useToast();
+
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -61,12 +75,14 @@ export function JournalLedgerView({ organizationId }: Props) {
       setEntries(eRes.entries);
       setNextCursor(eRes.nextCursor || null);
       setAccounts(aData);
-    } catch (err: any) {
-      setError(err.message || "Failed to load General Ledger entries");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load General Ledger entries";
+      setError(msg);
+      toast.error(msg, "Data Load Failed");
     } finally {
       setLoading(false);
     }
-  }, [organizationId]);
+  }, [organizationId, toast]);
 
   const handleLoadMore = async () => {
     if (!nextCursor || loadingMore) return;
@@ -75,8 +91,9 @@ export function JournalLedgerView({ organizationId }: Props) {
       const res = await fetchJournalEntries(organizationId, nextCursor);
       setEntries((prev) => [...prev, ...res.entries]);
       setNextCursor(res.nextCursor || null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load additional journal entries");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load additional journal entries";
+      toast.error(msg, "Pagination Error");
     } finally {
       setLoadingMore(false);
     }
@@ -162,8 +179,11 @@ export function JournalLedgerView({ organizationId }: Props) {
         { accountId: "", debitDollars: "", creditDollars: "", memo: "" },
         { accountId: "", debitDollars: "", creditDollars: "", memo: "" },
       ]);
-    } catch (err: any) {
-      setFormError(err.message || "Failed to post journal entry");
+      toast.success(`Entry #${posted.entryNumber} posted to General Ledger.`, "Journal Entry Posted");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to post journal entry";
+      setFormError(msg);
+      toast.error(msg, "Posting Error");
     } finally {
       setIsSubmitting(false);
     }
@@ -182,410 +202,365 @@ export function JournalLedgerView({ organizationId }: Props) {
         reversalReason.trim()
       );
 
-      // Refresh list
-      await loadData();
+      setEntries((prev) => [
+        reversalResult,
+        ...prev.map((item) =>
+          item.id === reversingEntry.id
+            ? { ...item, status: "REVERSED", reversedByEntryId: reversalResult.id }
+            : item
+        ),
+      ]);
+
       setReversingEntry(null);
       setReversalReason("");
-    } catch (err: any) {
-      setReversalError(err.message || "Failed to post entry reversal");
+      toast.success(`Entry reversed by #${reversalResult.entryNumber}.`, "Reversal Created");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to reverse journal entry";
+      setReversalError(msg);
+      toast.error(msg, "Reversal Failed");
     } finally {
       setIsReversing(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500 shadow-sm">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent mx-auto mb-2" />
-        Loading General Ledger Entries...
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      {/* Header Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border border-slate-200 bg-white shadow-card">
         <div>
-          <h3 className="text-base font-bold text-slate-900">General Ledger Entries</h3>
-          <p className="text-xs text-slate-500">
-            Immutable double-entry journal postings & linked reversal entries
+          <h2 className="text-base font-bold text-slate-900 tracking-tight">General Ledger</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Immutable, audit-ready double-entry ledger journals and line details.
           </p>
         </div>
 
         <button
+          type="button"
           onClick={() => setShowPostModal(true)}
-          disabled={accounts.length === 0}
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#FF7D00] hover:bg-[#E06E00] rounded-lg shadow-sm transition min-h-[44px] focus-visible:ring-2 focus-visible:ring-[#FF7D00]"
         >
-          + Post Journal Entry
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          <span>Post Manual Entry</span>
         </button>
       </div>
 
-      {accounts.length === 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 font-medium">
-          ⚠️ Please seed or create accounts in the <strong>Chart of Accounts</strong> tab before posting journal entries.
+      {/* Entries List */}
+      {loading ? (
+        <div className="p-8 text-center bg-white rounded-xl border border-slate-200 shadow-card">
+          <div className="w-6 h-6 border-2 border-[#15616D] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <p className="text-sm font-medium text-slate-600">Loading General Ledger entries...</p>
         </div>
-      )}
-
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 font-medium">
-          {error}
-        </div>
-      )}
-
-      {/* Ledger Table */}
-      {entries.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-          <p className="text-sm text-slate-900 font-bold">No posted journal entries</p>
-          <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-            Click &quot;Post Journal Entry&quot; to record balanced debit and credit ledger transactions with atomic audit trail tracking.
-          </p>
-        </div>
+      ) : entries.length === 0 ? (
+        <EmptyState
+          title="No journal entries posted"
+          description="The General Ledger has not recorded any transactions for this organization yet."
+          actionLabel="Post First Entry"
+          onAction={() => setShowPostModal(true)}
+        />
       ) : (
         <div className="space-y-4">
-          {entries.map((entry) => (
-            <div
-              key={entry.id}
-              className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-all ${
-                entry.reversedByEntryId
-                  ? "border-rose-200 bg-rose-50/20"
-                  : "border-slate-200"
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between border-b border-slate-200 bg-slate-50/80 px-5 py-3.5 text-xs">
-                <div className="flex items-center space-x-3">
-                  <span className="font-mono font-bold text-emerald-700">
-                    Entry #{entry.entryNumber}
-                  </span>
-                  <span className="text-slate-500 font-medium">
-                    Date: <strong className="text-slate-800">{entry.transactionDate}</strong>
-                  </span>
-                  {entry.reversedByEntryId && (
-                    <span className="rounded-full bg-rose-100 border border-rose-200 px-2.5 py-0.5 text-[10px] font-bold text-rose-700">
-                      REVERSED
+          {entries.map((entry) => {
+            const entryTotalDebit = entry.lines.reduce((s, l) => s + l.debitAmountMinorUnits, 0);
+            const entryTotalCredit = entry.lines.reduce((s, l) => s + l.creditAmountMinorUnits, 0);
+            const isEntryBalanced = entryTotalDebit === entryTotalCredit;
+
+            return (
+              <div
+                key={entry.id}
+                className="rounded-xl border border-slate-200 bg-white shadow-card overflow-hidden"
+              >
+                {/* Entry Header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-slate-50/80 border-b border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-xs font-bold text-slate-900 bg-white border border-slate-300 px-2 py-1 rounded">
+                      #{entry.entryNumber}
                     </span>
-                  )}
+                    <span className="font-semibold text-sm text-slate-900">{entry.description}</span>
+                    <StatusBadge status={entry.status} size="sm" />
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <span>Date: <strong className="text-slate-700">{entry.transactionDate}</strong> (UTC)</span>
+                    {entry.status === "POSTED" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReversingEntry(entry);
+                          setReversalReason("");
+                          setReversalError(null);
+                        }}
+                        className="px-2.5 py-1 font-bold text-rose-700 bg-white border border-rose-300 hover:bg-rose-50 rounded-md transition min-h-[32px] focus-visible:ring-2 focus-visible:ring-rose-500"
+                      >
+                        Reverse Entry
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <span className="text-slate-900 font-bold">{entry.description}</span>
-                  <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                    {entry.status}
-                  </span>
-                  {!entry.reversedByEntryId && (
-                    <button
-                      onClick={() => setReversingEntry(entry)}
-                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-[11px] font-bold shadow-2xs transition-colors"
-                    >
-                      Reverse Entry
-                    </button>
-                  )}
+
+                {/* Entry Lines Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/30 text-xs text-slate-500 font-semibold">
+                        <th className="px-4 py-2">Account Code & Name</th>
+                        <th className="px-4 py-2">Line Memo</th>
+                        <th className="px-4 py-2 text-right">Debit</th>
+                        <th className="px-4 py-2 text-right">Credit</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {entry.lines.map((line) => (
+                        <tr key={line.id} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-2.5">
+                            <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded mr-2">
+                              {line.accountCode || "AC-"}
+                            </span>
+                            <span className="text-slate-800 font-medium">{line.accountName || line.accountId}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-slate-500 text-xs">{line.memo || "—"}</td>
+                          <td className="px-4 py-2.5 text-right font-mono tnum">
+                            {line.debitAmountMinorUnits > 0 ? (
+                              <CurrencyAmount amountMinorUnits={line.debitAmountMinorUnits} currency={currency} />
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-mono tnum">
+                            {line.creditAmountMinorUnits > 0 ? (
+                              <CurrencyAmount amountMinorUnits={line.creditAmountMinorUnits} currency={currency} />
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-200 bg-slate-50/50 text-xs font-bold text-slate-700">
+                        <td colSpan={2} className="px-4 py-2 text-right uppercase">Total:</td>
+                        <td className="px-4 py-2 text-right font-mono tnum">
+                          <CurrencyAmount amountMinorUnits={entryTotalDebit} currency={currency} />
+                        </td>
+                        <td className="px-4 py-2 text-right font-mono tnum">
+                          <CurrencyAmount amountMinorUnits={entryTotalCredit} currency={currency} />
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               </div>
+            );
+          })}
 
-              {/* Entry Lines Table */}
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/50 text-slate-600 font-semibold border-b border-slate-200 uppercase text-[10px]">
-                  <tr>
-                    <th className="px-5 py-2.5">Account</th>
-                    <th className="px-5 py-2.5">Memo</th>
-                    <th className="px-5 py-2.5 text-right">Debit ($)</th>
-                    <th className="px-5 py-2.5 text-right">Credit ($)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-800">
-                  {entry.lines.map((l) => (
-                    <tr key={l.id} className="hover:bg-slate-50/60">
-                      <td className="px-5 py-2.5 font-mono">
-                        <span className="text-indigo-600 font-bold">{l.accountCode || "----"}</span> - <span className="font-sans font-medium text-slate-900">{l.accountName || l.accountId}</span>
-                      </td>
-                      <td className="px-5 py-2.5 text-slate-500">{l.memo || "-"}</td>
-                      <td className="px-5 py-2.5 text-right font-mono font-semibold text-slate-900">
-                        {l.debitAmountMinorUnits > 0
-                          ? (l.debitAmountMinorUnits / 100).toFixed(2)
-                          : "-"}
-                      </td>
-                      <td className="px-5 py-2.5 text-right font-mono font-semibold text-slate-900">
-                        {l.creditAmountMinorUnits > 0
-                          ? (l.creditAmountMinorUnits / 100).toFixed(2)
-                          : "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
           {nextCursor && (
-            <div className="text-center pt-2">
+            <div className="pt-4 text-center">
               <button
+                type="button"
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="rounded-xl border border-slate-300 bg-white px-6 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition disabled:opacity-50"
+                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-2xs transition min-h-[44px] disabled:opacity-50"
               >
-                {loadingMore ? "Loading More..." : "Load More Entries"}
+                {loadingMore ? "Loading more entries..." : "Load Older Entries"}
               </button>
             </div>
           )}
         </div>
       )}
 
-      {/* Post Entry Modal */}
-      {showPostModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Post Double-Entry Journal Transaction
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Strict invariant: Total Debits must equal Total Credits
-                </p>
-              </div>
+      {/* Post Manual Journal Entry Modal */}
+      <Modal
+        isOpen={showPostModal}
+        onClose={() => setShowPostModal(false)}
+        title="Post Manual Double-Entry Journal"
+        description="Every posted entry must satisfy debits = credits before it can be committed to the immutable ledger."
+        maxWidth="2xl"
+      >
+        <form onSubmit={handlePostEntry} className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-semibold text-[#BA1A1A]">
+              {formError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField id="entry-desc" label="Transaction Description" required>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Month-end revenue accrual"
+                required
+                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-lg focus-visible:ring-2 focus-visible:ring-[#15616D]"
+              />
+            </FormField>
+
+            <FormField id="entry-date" label="Transaction Date (UTC)" required>
+              <input
+                type="date"
+                value={transactionDate}
+                onChange={(e) => setTransactionDate(e.target.value)}
+                required
+                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-lg focus-visible:ring-2 focus-visible:ring-[#15616D]"
+              />
+            </FormField>
+          </div>
+
+          {/* Lines Table */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700 uppercase">Journal Lines (Debits & Credits)</span>
               <button
-                onClick={() => setShowPostModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+                type="button"
+                onClick={handleAddLine}
+                className="text-xs font-bold text-[#15616D] hover:underline"
               >
-                &times;
+                + Add Line
               </button>
             </div>
 
-            <form onSubmit={handlePostEntry} className="mt-4 space-y-4">
-              {formError && (
-                <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200 font-medium">
-                  {formError}
-                </div>
-              )}
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {lines.map((line, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                  <select
+                    value={line.accountId}
+                    onChange={(e) => handleLineChange(idx, "accountId", e.target.value)}
+                    required
+                    aria-label={`Account for line ${idx + 1}`}
+                    className="flex-1 text-xs bg-white border border-slate-300 rounded px-2 py-1.5 focus-visible:ring-2 focus-visible:ring-[#15616D]"
+                  >
+                    <option value="">Select Account</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.accountCode} - {a.name} ({a.accountType})
+                      </option>
+                    ))}
+                  </select>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Description *
-                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Debit"
+                    value={line.debitDollars}
+                    onChange={(e) => handleLineChange(idx, "debitDollars", e.target.value)}
+                    aria-label={`Debit amount for line ${idx + 1}`}
+                    className="w-24 text-xs font-mono text-right bg-white border border-slate-300 rounded px-2 py-1.5"
+                  />
+
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Credit"
+                    value={line.creditDollars}
+                    onChange={(e) => handleLineChange(idx, "creditDollars", e.target.value)}
+                    aria-label={`Credit amount for line ${idx + 1}`}
+                    className="w-24 text-xs font-mono text-right bg-white border border-slate-300 rounded px-2 py-1.5"
+                  />
+
                   <input
                     type="text"
-                    required
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="e.g. Monthly SaaS Subscription Invoice"
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none"
+                    placeholder="Memo"
+                    value={line.memo}
+                    onChange={(e) => handleLineChange(idx, "memo", e.target.value)}
+                    aria-label={`Memo for line ${idx + 1}`}
+                    className="w-28 text-xs bg-white border border-slate-300 rounded px-2 py-1.5"
                   />
-                </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Transaction Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={transactionDate}
-                    onChange={(e) => setTransactionDate(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Line items editor */}
-              <div className="space-y-3 pt-2">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-800 border-b border-slate-200 pb-2">
-                  <span>Entry Lines (Min. 2)</span>
-                  <button
-                    type="button"
-                    onClick={handleAddLine}
-                    className="text-emerald-700 hover:text-emerald-800 text-xs font-bold"
-                  >
-                    + Add Line
-                  </button>
-                </div>
-
-                {lines.map((line, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-12 gap-2 items-center rounded-xl bg-slate-50 p-2.5 border border-slate-200"
-                  >
-                    <div className="col-span-4">
-                      <select
-                        required
-                        value={line.accountId}
-                        onChange={(e) => handleLineChange(idx, "accountId", e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none"
-                      >
-                        <option value="">-- Select Account --</option>
-                        {accounts.map((acc) => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.accountCode} - {acc.name} ({acc.accountType})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="col-span-3">
-                      <input
-                        type="text"
-                        placeholder="Debit ($)"
-                        value={line.debitDollars}
-                        onChange={(e) => handleLineChange(idx, "debitDollars", e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 text-right font-mono focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="col-span-3">
-                      <input
-                        type="text"
-                        placeholder="Credit ($)"
-                        value={line.creditDollars}
-                        onChange={(e) => handleLineChange(idx, "creditDollars", e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 text-right font-mono focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="col-span-2 flex items-center justify-between">
-                      <input
-                        type="text"
-                        placeholder="Memo"
-                        value={line.memo}
-                        onChange={(e) => handleLineChange(idx, "memo", e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-900 focus:border-emerald-500 focus:outline-none"
-                      />
-                      {lines.length > 2 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveLine(idx)}
-                          className="ml-1 text-slate-400 hover:text-rose-600 font-bold px-1"
-                        >
-                          &times;
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Real-time Double-Entry Equality Indicator */}
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs">
-                <div>
-                  <span className="text-slate-600 font-medium">Total Debits: </span>
-                  <strong className="font-mono text-slate-900">
-                    ${(totalDebitMinor / 100).toFixed(2)}
-                  </strong>
-                  <span className="mx-3 text-slate-300">|</span>
-                  <span className="text-slate-600 font-medium">Total Credits: </span>
-                  <strong className="font-mono text-slate-900">
-                    ${(totalCreditMinor / 100).toFixed(2)}
-                  </strong>
-                </div>
-
-                <div>
-                  {isBalanced ? (
-                    <span className="inline-flex items-center rounded-md bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
-                      ✓ Balanced (Debits = Credits)
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-md bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-bold text-rose-700">
-                      ✕ Unbalanced (${Math.abs(totalDebitMinor - totalCreditMinor) / 100} discrepancy)
-                    </span>
+                  {lines.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLine(idx)}
+                      aria-label={`Remove line ${idx + 1}`}
+                      className="text-slate-400 hover:text-rose-600 p-1"
+                    >
+                      &times;
+                    </button>
                   )}
                 </div>
-              </div>
-
-              <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowPostModal(false)}
-                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !isBalanced}
-                  className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-40 transition"
-                >
-                  {isSubmitting ? "Posting..." : "Post Journal Entry"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Reversal Confirmation Modal */}
-      {reversingEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Reverse Journal Entry #{reversingEntry.entryNumber}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Post an atomic Linked Reversal with swapped debit and credit lines
-                </p>
-              </div>
-              <button
-                onClick={() => setReversingEntry(null)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
-              >
-                &times;
-              </button>
+              ))}
             </div>
 
-            <form onSubmit={handleExecuteReversal} className="mt-4 space-y-4">
-              {reversalError && (
-                <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200 font-medium">
-                  {reversalError}
-                </div>
-              )}
-
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                <div className="font-semibold text-slate-800">Target Entry Details:</div>
-                <div className="text-slate-600">
-                  Description: <strong className="text-slate-900">{reversingEntry.description}</strong>
-                </div>
-                <div className="text-slate-600">
-                  Transaction Date: <strong className="text-slate-900">{reversingEntry.transactionDate}</strong>
-                </div>
-                <div className="text-slate-600">
-                  Line Count: <strong className="text-slate-900">{reversingEntry.lines.length} lines</strong>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Reason for Reversal *
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={reversalReason}
-                  onChange={(e) => setReversalReason(e.target.value)}
-                  placeholder="e.g. Correcting duplicate vendor payment entry per audit review."
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setReversingEntry(null)}
-                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isReversing || !reversalReason.trim()}
-                  className="rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-700 disabled:opacity-40 transition"
-                >
-                  {isReversing ? "Posting Reversal..." : "Post Reversal Entry"}
-                </button>
-              </div>
-            </form>
+            {/* Live Balance Checker */}
+            <div className="flex items-center justify-between p-3 bg-slate-100 rounded-lg text-xs font-semibold">
+              <span>
+                Total Debits: <strong className="font-mono">{currency} {(totalDebitMinor / 100).toFixed(2)}</strong> | Total Credits: <strong className="font-mono">{currency} {(totalCreditMinor / 100).toFixed(2)}</strong>
+              </span>
+              <span className={`px-2 py-0.5 rounded font-bold ${isBalanced ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
+                {isBalanced ? "BALANCED" : "OUT OF BALANCE"}
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setShowPostModal(false)}
+              className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg min-h-[44px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!isBalanced || isSubmitting || !description.trim()}
+              className="px-4 py-2 text-sm font-bold text-white bg-[#FF7D00] hover:bg-[#E06E00] rounded-lg shadow-sm transition disabled:opacity-40 min-h-[44px]"
+            >
+              {isSubmitting ? "Posting..." : "Commit Entry to Ledger"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Reversal Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(reversingEntry)}
+        onClose={() => setReversingEntry(null)}
+        title={`Reverse Journal Entry #${reversingEntry?.entryNumber}`}
+        description="Accounting standards require immutable reversals rather than modifying or deleting committed journals."
+        maxWidth="md"
+      >
+        <form onSubmit={handleExecuteReversal} className="space-y-4">
+          {reversalError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-semibold text-[#BA1A1A]">
+              {reversalError}
+            </div>
+          )}
+
+          <p className="text-sm text-slate-600">
+            Committing this action will post an exact offsetting entry to debit and credit balances.
+          </p>
+
+          <FormField id="reversal-reason" label="Audit Reason for Reversal" required>
+            <input
+              type="text"
+              value={reversalReason}
+              onChange={(e) => setReversalReason(e.target.value)}
+              placeholder="e.g. Duplicate accrual reversed per auditor request"
+              required
+              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-lg focus-visible:ring-2 focus-visible:ring-[#15616D]"
+            />
+          </FormField>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setReversingEntry(null)}
+              className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg min-h-[44px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isReversing || !reversalReason.trim()}
+              className="px-4 py-2 text-sm font-bold text-white bg-[#BA1A1A] hover:bg-[#93000A] rounded-lg shadow-sm transition disabled:opacity-40 min-h-[44px]"
+            >
+              {isReversing ? "Reversing..." : "Confirm Ledger Reversal"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -937,4 +937,13 @@ export async function fetchOrganizationMembers(orgId: string): Promise<OrgMember
   return data.members || [];
 }
 
+export async function checkSystemHealth(): Promise<"healthy" | "unhealthy" | "unavailable"> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/health/live`, { cache: "no-store" });
+    return res.ok ? "healthy" : "unhealthy";
+  } catch {
+    return "unavailable";
+  }
+}
+
 

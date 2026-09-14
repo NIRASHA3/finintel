@@ -1,13 +1,27 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { fetchAuditLogs, AuditLog, Organization } from "../../lib/api-client";
+import { useOrganization } from "../../lib/context/OrganizationContext";
+import { useToast } from "../../lib/context/ToastContext";
+import {
+  DataTable,
+  Column,
+  AlertBanner,
+  EmptyState,
+} from "./ui";
 
 interface AuditTrailViewProps {
-  organization: Organization;
+  organization?: Organization;
 }
 
-export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ organization }) => {
+export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
+  organization: propOrg,
+}) => {
+  const { activeOrg } = useOrganization();
+  const organization = propOrg || activeOrg;
+  const toast = useToast();
+
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,30 +31,33 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ organization }) 
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
+    if (!organization?.id) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetchAuditLogs(organization.id, 100);
       setLogs(res.auditLogs);
       setNextCursor(res.nextCursor || null);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to load audit logs");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load audit logs";
+      setError(msg);
+      toast.error(msg, "Audit Trail Load Failed");
     } finally {
       setLoading(false);
     }
-  };
+  }, [organization?.id, toast]);
 
   const handleLoadMore = async () => {
-    if (!nextCursor || loadingMore) return;
+    if (!organization?.id || !nextCursor || loadingMore) return;
     setLoadingMore(true);
     try {
       const res = await fetchAuditLogs(organization.id, 100, nextCursor);
       setLogs((prev) => [...prev, ...res.auditLogs]);
       setNextCursor(res.nextCursor || null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load additional audit logs");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load additional audit logs";
+      toast.error(msg, "Pagination Error");
     } finally {
       setLoadingMore(false);
     }
@@ -48,7 +65,7 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ organization }) 
 
   useEffect(() => {
     loadLogs();
-  }, [organization.id]);
+  }, [loadLogs]);
 
   const filteredLogs = logs.filter((log) => {
     if (actionFilter === "ALL") return true;
@@ -58,34 +75,107 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ organization }) 
   const getActionBadge = (action: string) => {
     switch (action) {
       case "POST":
-        return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">POST</span>;
+        return "bg-emerald-50 text-emerald-800 border-emerald-300";
       case "LOCK":
-        return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">LOCK</span>;
+        return "bg-rose-50 text-[#BA1A1A] border-rose-300";
       case "CLOSE":
       case "UPDATE":
-        return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">{action}</span>;
+        return "bg-amber-50 text-amber-900 border-amber-300";
       case "CREATE":
-        return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">CREATE</span>;
+        return "bg-indigo-50 text-indigo-900 border-indigo-300";
       default:
-        return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">{action}</span>;
+        return "bg-slate-100 text-slate-700 border-slate-300";
     }
   };
 
+  if (!organization) {
+    return (
+      <EmptyState
+        title="No organization selected"
+        description="Select an organization to inspect its compliance audit trail."
+      />
+    );
+  }
+
+  const columns: Column<AuditLog>[] = [
+    {
+      key: "createdAt",
+      header: "Timestamp (UTC)",
+      render: (log) => (
+        <span className="font-mono text-xs font-semibold text-slate-800">
+          {new Date(log.createdAt).toISOString().replace("T", " ").substring(0, 19)}
+        </span>
+      ),
+    },
+    {
+      key: "action",
+      header: "Action",
+      render: (log) => (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${getActionBadge(log.action)}`}>
+          {log.action}
+        </span>
+      ),
+    },
+    {
+      key: "target",
+      header: "Entity Target",
+      render: (log) => (
+        <div className="space-y-0.5">
+          <span className="text-xs font-bold text-slate-900 block">{log.entityType}</span>
+          <span className="font-mono text-xs text-slate-400 block truncate max-w-[200px]">ID: {log.entityId}</span>
+        </div>
+      ),
+    },
+    {
+      key: "user",
+      header: "Invoking Actor",
+      render: (log) => (
+        <div className="space-y-0.5">
+          <span className="text-xs font-bold text-slate-800 block">
+            {log.actorFullName || log.actorEmail || `Actor: ${log.actorId?.substring(0, 8) || "System"}`}
+          </span>
+          <span className="font-mono text-xs text-slate-400 block truncate max-w-[160px]">
+            Corr: {log.correlationId ? log.correlationId.substring(0, 12) : "—"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "details",
+      header: "Payload",
+      align: "right",
+      render: (log) => (
+        <button
+          type="button"
+          onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}
+          className="text-xs font-bold text-[#15616D] hover:underline"
+        >
+          {expandedLogId === log.id ? "Hide JSON" : "Inspect"}
+        </button>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* HEADER & FILTER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+      {/* Header & Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl bg-white border border-slate-200 shadow-card">
         <div>
-          <h3 className="text-base font-bold text-slate-900">Atomic Audit Trail</h3>
-          <p className="text-xs text-slate-500">Append-only compliance log of accounting and security operations</p>
+          <h2 className="text-base font-bold text-slate-900 tracking-tight">Atomic Audit Trail</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Append-only, cryptographically verified record of system actions, journal posts, and state transitions.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="text-xs text-slate-600 font-semibold">Filter Action:</label>
+          <label htmlFor="audit-filter-action" className="text-xs text-slate-600 font-semibold">
+            Action:
+          </label>
           <select
+            id="audit-filter-action"
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500 shadow-xs"
+            className="bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 min-h-[36px]"
           >
             <option value="ALL">All Actions</option>
             <option value="POST">POST</option>
@@ -96,8 +186,9 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ organization }) 
           </select>
 
           <button
+            type="button"
             onClick={loadLogs}
-            className="px-3.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-300 transition"
+            className="px-3.5 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 rounded-lg border border-slate-300 transition min-h-[36px]"
           >
             Refresh
           </button>
@@ -105,82 +196,57 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ organization }) 
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
-          {error}
+        <AlertBanner
+          type="error"
+          title="Audit Trail Error"
+          message={error}
+          onRetry={loadLogs}
+        />
+      )}
+
+      {/* Table */}
+      <DataTable
+        columns={columns}
+        data={filteredLogs}
+        keyExtractor={(l) => l.id}
+        loading={loading}
+        emptyTitle="No audit records"
+        emptyDescription="No events matching the selected filter have been recorded in the audit log."
+      />
+
+      {/* Expanded payload details inspector */}
+      {expandedLogId && (
+        <div className="p-4 bg-slate-900 text-slate-100 rounded-xl font-mono text-xs overflow-x-auto shadow-card space-y-2">
+          <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-2">
+            <span>Audit Entry ID: {expandedLogId}</span>
+            <button
+              type="button"
+              onClick={() => setExpandedLogId(null)}
+              className="hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+          <pre>
+            {JSON.stringify(
+              logs.find((l) => l.id === expandedLogId)?.changes || {},
+              null,
+              2
+            )}
+          </pre>
         </div>
       )}
 
-      {loading ? (
-        <div className="p-12 text-center text-slate-500 text-xs font-medium animate-pulse rounded-2xl bg-white border border-slate-200 shadow-sm">
-          Loading audit trail records...
-        </div>
-      ) : filteredLogs.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <p className="text-slate-900 text-sm font-bold">No audit log records found.</p>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-          <table className="w-full text-left text-xs text-slate-800">
-            <thead className="bg-slate-50 text-slate-700 uppercase font-semibold border-b border-slate-200">
-              <tr>
-                <th className="p-3.5">Timestamp</th>
-                <th className="p-3.5">Action</th>
-                <th className="p-3.5">Entity Type</th>
-                <th className="p-3.5">Actor</th>
-                <th className="p-3.5">Correlation ID</th>
-                <th className="p-3.5 text-right">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 font-mono">
-              {filteredLogs.map((log) => {
-                const isExpanded = expandedLogId === log.id;
-                return (
-                  <React.Fragment key={log.id}>
-                    <tr className="hover:bg-slate-50/80">
-                      <td className="p-3.5 text-slate-600 font-medium">{new Date(log.createdAt).toLocaleString()}</td>
-                      <td className="p-3.5 font-sans">{getActionBadge(log.action)}</td>
-                      <td className="p-3.5 text-indigo-700 font-bold">{log.entityType}</td>
-                      <td className="p-3.5 font-sans text-slate-900 font-medium">
-                        {log.actorFullName || log.actorEmail || log.actorType}
-                      </td>
-                      <td className="p-3.5 text-slate-500 text-[11px]">{log.correlationId}</td>
-                      <td className="p-3.5 text-right font-sans">
-                        <button
-                          onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                          className="px-3 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition"
-                        >
-                          {isExpanded ? "Hide JSON" : "View JSON"}
-                        </button>
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr className="bg-slate-50 border-b border-slate-200">
-                        <td colSpan={6} className="p-4">
-                          <div className="text-[11px] font-mono text-slate-100 bg-slate-900 p-4 rounded-xl border border-slate-800 overflow-x-auto shadow-inner">
-                            <span className="text-slate-400 block mb-1 text-[10px] uppercase font-bold">Audit Payload Diff:</span>
-                            <pre className="text-emerald-400 whitespace-pre-wrap">
-                              {JSON.stringify(log.changes, null, 2)}
-                            </pre>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-          {nextCursor && (
-            <div className="p-4 text-center border-t border-slate-200 bg-slate-50">
-              <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="px-6 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 rounded-xl border border-slate-300 shadow-xs transition disabled:opacity-50"
-              >
-                {loadingMore ? "Loading More..." : "Load More Audit Logs"}
-              </button>
-            </div>
-          )}
+      {nextCursor && (
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition min-h-[44px] disabled:opacity-50"
+          >
+            {loadingMore ? "Loading older logs..." : "Load Older Logs"}
+          </button>
         </div>
       )}
     </div>
