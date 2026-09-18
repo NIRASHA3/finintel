@@ -11,6 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
 var (
@@ -70,6 +72,16 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
+}
+
 func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID string, correlationID string, params CreateJournalEntryParams) (*JournalEntry, error) {
 	description := strings.TrimSpace(params.Description)
 	if len(description) < 3 {
@@ -93,7 +105,6 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 			return nil, ErrInvalidLineAmount
 		}
 
-		// XOR check: line must be either debit > 0 or credit > 0, never both, never neither
 		isDebit := line.DebitAmountMinorUnits > 0 && line.CreditAmountMinorUnits == 0
 		isCredit := line.CreditAmountMinorUnits > 0 && line.DebitAmountMinorUnits == 0
 
@@ -105,20 +116,14 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 		totalCredit += line.CreditAmountMinorUnits
 	}
 
-	// STRICT DOUBLE-ENTRY EQUALITY INVARIANT: sum(Debits) MUST EQUAL sum(Credits)
 	if totalDebit != totalCredit {
 		return nil, fmt.Errorf("%w: total debits (%d) must equal total credits (%d)", ErrUnbalancedJournalEntry, totalDebit, totalCredit)
 	}
 
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
-
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start posting transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
 
 	// 0. FISCAL PERIOD LOCK SAFEGUARD: Verify period for transaction date is open
 	var periodStatus string
@@ -127,7 +132,7 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 		FROM fiscal_periods 
 		WHERE organization_id = $1 AND start_date <= $2::date AND end_date >= $2::date;
 	`
-	err = tx.QueryRow(ctx, periodCheckQuery, orgID, txDate).Scan(&periodStatus)
+	err := db.QueryRow(ctx, periodCheckQuery, orgID, txDate).Scan(&periodStatus)
 	if err == nil {
 		if periodStatus == "CLOSED" || periodStatus == "LOCKED" {
 			return nil, fmt.Errorf("%w: period for date %s is %s", ErrFiscalPeriodLocked, txDate, periodStatus)
@@ -138,7 +143,7 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 	for _, line := range params.Lines {
 		var exists bool
 		accQuery := `SELECT EXISTS(SELECT 1 FROM accounts WHERE organization_id = $1 AND id = $2 AND is_active = true);`
-		if err := tx.QueryRow(ctx, accQuery, orgID, line.AccountID).Scan(&exists); err != nil || !exists {
+		if err := db.QueryRow(ctx, accQuery, orgID, line.AccountID).Scan(&exists); err != nil || !exists {
 			return nil, fmt.Errorf("%w: account ID %s", ErrAccountNotFound, line.AccountID)
 		}
 	}
@@ -146,7 +151,7 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 	// 2. Monotonically generate entry number per organization
 	var nextEntryNum int64
 	numQuery := `SELECT COALESCE(MAX(entry_number), 0) + 1 FROM journal_entries WHERE organization_id = $1;`
-	if err := tx.QueryRow(ctx, numQuery, orgID).Scan(&nextEntryNum); err != nil {
+	if err := db.QueryRow(ctx, numQuery, orgID).Scan(&nextEntryNum); err != nil {
 		return nil, fmt.Errorf("failed to generate journal entry number: %w", err)
 	}
 
@@ -164,7 +169,7 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 		VALUES ($1, $2, $3::date, $4, 'POSTED', $5)
 		RETURNING id, created_at;
 	`
-	if err := tx.QueryRow(ctx, insertEntryQuery, orgID, nextEntryNum, txDate, description, userID).Scan(&entry.ID, &entry.CreatedAt); err != nil {
+	if err := db.QueryRow(ctx, insertEntryQuery, orgID, nextEntryNum, txDate, description, userID).Scan(&entry.ID, &entry.CreatedAt); err != nil {
 		return nil, fmt.Errorf("failed to insert journal entry: %w", err)
 	}
 
@@ -183,7 +188,7 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 		lineObj.CreditAmountMinorUnits = lReq.CreditAmountMinorUnits
 		lineObj.Memo = lReq.Memo
 
-		err := tx.QueryRow(ctx, insertLineQuery, orgID, entry.ID, lReq.AccountID, lReq.DebitAmountMinorUnits, lReq.CreditAmountMinorUnits, lReq.Memo).Scan(&lineObj.ID)
+		err := db.QueryRow(ctx, insertLineQuery, orgID, entry.ID, lReq.AccountID, lReq.DebitAmountMinorUnits, lReq.CreditAmountMinorUnits, lReq.Memo).Scan(&lineObj.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert journal entry line: %w", err)
 		}
@@ -207,12 +212,8 @@ func (s *Service) PostJournalEntry(ctx context.Context, orgID string, userID str
 		INSERT INTO audit_logs (organization_id, actor_id, actor_type, correlation_id, entity_type, entity_id, action, changes)
 		VALUES ($1, $2, 'USER', $3, 'JOURNAL_ENTRY', $4, 'POST', $5);
 	`
-	if _, err := tx.Exec(ctx, insertAuditQuery, orgID, userID, correlationID, entry.ID, changesJSON); err != nil {
+	if _, err := db.Exec(ctx, insertAuditQuery, orgID, userID, correlationID, entry.ID, changesJSON); err != nil {
 		return nil, fmt.Errorf("failed to record journal posting audit log: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit journal posting transaction: %w", err)
 	}
 
 	return &entry, nil
@@ -240,7 +241,8 @@ func DecodeCursor(cursor string) (time.Time, string, error) {
 }
 
 func (s *Service) ListJournalEntries(ctx context.Context, orgID string, cursor string, limit int) ([]JournalEntry, string, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, "", ErrDatabaseUnavailable
 	}
 
@@ -264,7 +266,7 @@ func (s *Service) ListJournalEntries(ctx context.Context, orgID string, cursor s
 			ORDER BY created_at DESC, id DESC
 			LIMIT $4;
 		`
-		rows, err = s.db.Query(ctx, entriesQuery, orgID, cursorTime, cursorID, limit+1)
+		rows, err = db.Query(ctx, entriesQuery, orgID, cursorTime, cursorID, limit+1)
 	} else {
 		entriesQuery := `
 			SELECT id, organization_id, entry_number, transaction_date::text, description, status, COALESCE(reversed_by_entry_id::text, ''), COALESCE(posted_by_user_id::text, ''), created_at
@@ -273,7 +275,7 @@ func (s *Service) ListJournalEntries(ctx context.Context, orgID string, cursor s
 			ORDER BY created_at DESC, id DESC
 			LIMIT $2;
 		`
-		rows, err = s.db.Query(ctx, entriesQuery, orgID, limit+1)
+		rows, err = db.Query(ctx, entriesQuery, orgID, limit+1)
 	}
 
 	if err != nil {
@@ -294,7 +296,7 @@ func (s *Service) ListJournalEntries(ctx context.Context, orgID string, cursor s
 			JOIN accounts a ON jel.account_id = a.id
 			WHERE jel.organization_id = $1 AND jel.journal_entry_id = $2;
 		`
-		lRows, err := s.db.Query(ctx, linesQuery, orgID, e.ID)
+		lRows, err := db.Query(ctx, linesQuery, orgID, e.ID)
 		if err == nil {
 			for lRows.Next() {
 				var l JournalEntryLine
@@ -325,7 +327,8 @@ func (s *Service) ListJournalEntries(ctx context.Context, orgID string, cursor s
 }
 
 func (s *Service) GetJournalEntryByID(ctx context.Context, orgID string, entryID string) (*JournalEntry, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -335,7 +338,7 @@ func (s *Service) GetJournalEntryByID(ctx context.Context, orgID string, entryID
 		WHERE organization_id = $1 AND id = $2;
 	`
 	var e JournalEntry
-	err := s.db.QueryRow(ctx, query, orgID, entryID).Scan(&e.ID, &e.OrganizationID, &e.EntryNumber, &e.TransactionDate, &e.Description, &e.Status, &e.ReversedByEntryID, &e.PostedByUserID, &e.CreatedAt)
+	err := db.QueryRow(ctx, query, orgID, entryID).Scan(&e.ID, &e.OrganizationID, &e.EntryNumber, &e.TransactionDate, &e.Description, &e.Status, &e.ReversedByEntryID, &e.PostedByUserID, &e.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("journal entry not found")
@@ -349,7 +352,7 @@ func (s *Service) GetJournalEntryByID(ctx context.Context, orgID string, entryID
 		JOIN accounts a ON jel.account_id = a.id
 		WHERE jel.organization_id = $1 AND jel.journal_entry_id = $2;
 	`
-	lRows, err := s.db.Query(ctx, linesQuery, orgID, e.ID)
+	lRows, err := db.Query(ctx, linesQuery, orgID, e.ID)
 	if err == nil {
 		for lRows.Next() {
 			var l JournalEntryLine

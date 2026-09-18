@@ -28,23 +28,75 @@ func TestLoadDefaults(t *testing.T) {
 
 func TestValidateProductionFailsWithPlaceholder(t *testing.T) {
 	cfg := &config.Config{
-		Env:         "production",
-		Port:        8080,
-		DatabaseURL: "postgres://finintel_user:placeholder_pass@localhost:5432/finintel_dev?sslmode=disable",
+		Env:             "production",
+		Port:            8080,
+		DatabaseURL:     "postgres://finintel_user:placeholder_pass@localhost:5432/finintel_dev?sslmode=disable",
+		OIDCIssuerURL:   "https://auth.example.com",
+		OIDCAudience:    "finintel-api",
+		OIDCAllowedAlgs: []string{"RS256"},
 	}
 
 	err := cfg.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "DATABASE_URL must be explicitly configured")
+	assert.Contains(t, err.Error(), "placeholder")
 }
 
 func TestValidateProductionSuccess(t *testing.T) {
 	cfg := &config.Config{
-		Env:         "production",
-		Port:        8080,
-		DatabaseURL: "postgres://real_prod_user:secret_prod_pass@prod-db.example.com:5432/finintel_prod?sslmode=require",
+		Env:             "production",
+		Port:            8080,
+		DatabaseURL:     "postgres://real_prod_user:secret_prod_pass@prod-db.example.com:5432/finintel_prod?sslmode=require",
+		OIDCIssuerURL:   "https://auth.example.com",
+		OIDCJwksURL:     "https://auth.example.com/.well-known/jwks.json",
+		OIDCAudience:    "finintel-api",
+		OIDCAllowedAlgs: []string{"RS256"},
 	}
 
 	err := cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestValidateInsecureJWKSURLRejectedInStagingAndProduction(t *testing.T) {
+	for _, env := range []string{"production", "staging"} {
+		cfg := &config.Config{
+			Env:             env,
+			Port:            8080,
+			DatabaseURL:     "postgres://real_user:secret_pass@db.example.com:5432/finintel?sslmode=require",
+			OIDCIssuerURL:   "https://auth.example.com",
+			OIDCJwksURL:     "http://auth.example.com/.well-known/jwks.json",
+			OIDCAudience:    "finintel-api",
+			OIDCAllowedAlgs: []string{"RS256"},
+		}
+
+		err := cfg.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "OIDC_JWKS_URL must use HTTPS")
+	}
+}
+
+func TestValidateOIDCAllowedAlgs(t *testing.T) {
+	cfg := &config.Config{
+		Env:           "development",
+		Port:          8080,
+		DatabaseURL:   "postgres://localhost:5432/db",
+		OIDCIssuerURL: "http://localhost:8081/realms/finintel",
+		OIDCAudience:  "finintel-api",
+	}
+
+	// Empty algorithms rejected
+	cfg.OIDCAllowedAlgs = []string{}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "OIDC_ALLOWED_ALGS must contain at least one algorithm")
+
+	// Unsupported algorithm rejected
+	cfg.OIDCAllowedAlgs = []string{"HS256"}
+	err = cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "only RS256 is allowed")
+
+	// RS256 accepted
+	cfg.OIDCAllowedAlgs = []string{"RS256"}
+	err = cfg.Validate()
 	assert.NoError(t, err)
 }

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
 var (
@@ -66,9 +68,19 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
-// GetTrialBalance aggregates total debits and credits for all active/used accounts as of a target date.
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
+}
+
 func (s *Service) GetTrialBalance(ctx context.Context, orgID string, asOfDate string) (*TrialBalanceReport, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -94,7 +106,7 @@ func (s *Service) GetTrialBalance(ctx context.Context, orgID string, asOfDate st
 		ORDER BY a.account_code ASC;
 	`
 
-	rows, err := s.db.Query(ctx, query, orgID, date)
+	rows, err := db.Query(ctx, query, orgID, date)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query trial balance: %w", err)
 	}
@@ -125,7 +137,6 @@ func (s *Service) GetTrialBalance(ctx context.Context, orgID string, asOfDate st
 	return &report, nil
 }
 
-// GetIncomeStatement aggregates revenues and expenses between startDate and endDate.
 func (s *Service) GetIncomeStatement(ctx context.Context, orgID string, startDate string, endDate string) (*IncomeStatementReport, error) {
 	sDate := strings.TrimSpace(startDate)
 	eDate := strings.TrimSpace(endDate)
@@ -134,7 +145,6 @@ func (s *Service) GetIncomeStatement(ctx context.Context, orgID string, startDat
 		eDate = time.Now().UTC().Format("2006-01-02")
 	}
 	if sDate == "" {
-		// Default to first day of current year
 		sDate = time.Now().UTC().Format("2006") + "-01-01"
 	}
 
@@ -142,7 +152,8 @@ func (s *Service) GetIncomeStatement(ctx context.Context, orgID string, startDat
 		return nil, ErrInvalidDateRange
 	}
 
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -166,7 +177,7 @@ func (s *Service) GetIncomeStatement(ctx context.Context, orgID string, startDat
 		ORDER BY a.account_code ASC;
 	`
 
-	rows, err := s.db.Query(ctx, query, orgID, sDate, eDate)
+	rows, err := db.Query(ctx, query, orgID, sDate, eDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query income statement: %w", err)
 	}
@@ -184,11 +195,12 @@ func (s *Service) GetIncomeStatement(ctx context.Context, orgID string, startDat
 			return nil, fmt.Errorf("failed to scan income statement row: %w", err)
 		}
 
-		if line.AccountType == "REVENUE" {
+		switch line.AccountType {
+		case "REVENUE":
 			line.NetBalanceMinorUnits = line.CreditAmountMinorUnits - line.DebitAmountMinorUnits
 			report.TotalRevenueMinorUnits += line.NetBalanceMinorUnits
 			report.RevenueAccounts = append(report.RevenueAccounts, line)
-		} else if line.AccountType == "EXPENSE" {
+		case "EXPENSE":
 			line.NetBalanceMinorUnits = line.DebitAmountMinorUnits - line.CreditAmountMinorUnits
 			report.TotalExpensesMinorUnits += line.NetBalanceMinorUnits
 			report.ExpenseAccounts = append(report.ExpenseAccounts, line)
@@ -199,9 +211,9 @@ func (s *Service) GetIncomeStatement(ctx context.Context, orgID string, startDat
 	return &report, nil
 }
 
-// GetBalanceSheet calculates Assets, Liabilities, and Equity as of asOfDate with the Balance Sheet Equation Safeguard.
 func (s *Service) GetBalanceSheet(ctx context.Context, orgID string, asOfDate string) (*BalanceSheetReport, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -227,7 +239,7 @@ func (s *Service) GetBalanceSheet(ctx context.Context, orgID string, asOfDate st
 		ORDER BY a.account_code ASC;
 	`
 
-	rows, err := s.db.Query(ctx, query, orgID, date)
+	rows, err := db.Query(ctx, query, orgID, date)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query balance sheet: %w", err)
 	}
@@ -278,7 +290,6 @@ func (s *Service) GetBalanceSheet(ctx context.Context, orgID string, asOfDate st
 	report.TotalEquityMinorUnits = report.DirectEquityMinorUnits + report.RetainedEarningsMinorUnits
 	report.TotalLiabilitiesAndEquityMinor = report.TotalLiabilitiesMinorUnits + report.TotalEquityMinorUnits
 
-	// BALANCE SHEET EQUATION SAFEGUARD: Assets = Liabilities + Equity
 	report.EquationDeltaMinorUnits = report.TotalAssetsMinorUnits - report.TotalLiabilitiesAndEquityMinor
 	report.IsBalanced = (report.EquationDeltaMinorUnits == 0)
 

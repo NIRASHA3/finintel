@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -26,6 +27,36 @@ func NewPostgresPool(ctx context.Context, connString string, maxConns int32) (*P
 
 	if maxConns > 0 {
 		config.MaxConns = maxConns
+	}
+
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		var sessionUser string
+		var sessionSuperuser, sessionBypassRLS bool
+		err := conn.QueryRow(ctx, `
+			SELECT session_user, rolsuper, rolbypassrls
+			FROM pg_roles
+			WHERE rolname = session_user;
+		`).Scan(&sessionUser, &sessionSuperuser, &sessionBypassRLS)
+		if err != nil {
+			return fmt.Errorf("failed to verify database login role: %w", err)
+		}
+		if sessionSuperuser || sessionBypassRLS {
+			return fmt.Errorf("database login role '%s' must not be superuser or BYPASSRLS", sessionUser)
+		}
+
+		_, err = conn.Exec(ctx, "SET ROLE finintel_app;")
+		if err != nil {
+			return fmt.Errorf("failed to execute SET ROLE finintel_app on connection: %w", err)
+		}
+		var currentUser string
+		err = conn.QueryRow(ctx, "SELECT current_user, session_user;").Scan(&currentUser, &sessionUser)
+		if err != nil {
+			return fmt.Errorf("failed to verify current_user on connection: %w", err)
+		}
+		if currentUser != "finintel_app" {
+			return fmt.Errorf("connection current_user is '%s', expected 'finintel_app'", currentUser)
+		}
+		return nil
 	}
 
 	initCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

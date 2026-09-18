@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,8 +24,19 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
+}
+
 func (s *Service) ExportGeneralLedgerCSV(ctx context.Context, orgID string) (string, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return "", ErrDatabaseUnavailable
 	}
 
@@ -38,7 +50,7 @@ func (s *Service) ExportGeneralLedgerCSV(ctx context.Context, orgID string) (str
 		WHERE je.organization_id = $1
 		ORDER BY je.entry_number ASC, jel.id ASC;
 	`
-	rows, err := s.db.Query(ctx, query, orgID)
+	rows, err := db.Query(ctx, query, orgID)
 	if err != nil {
 		return "", fmt.Errorf("failed to query general ledger for export: %w", err)
 	}
@@ -82,7 +94,8 @@ func (s *Service) ExportGeneralLedgerCSV(ctx context.Context, orgID string) (str
 }
 
 func (s *Service) ExportAuditLogsCSV(ctx context.Context, orgID string) (string, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return "", ErrDatabaseUnavailable
 	}
 
@@ -94,7 +107,7 @@ func (s *Service) ExportAuditLogsCSV(ctx context.Context, orgID string) (string,
 		WHERE al.organization_id = $1
 		ORDER BY al.created_at DESC;
 	`
-	rows, err := s.db.Query(ctx, query, orgID)
+	rows, err := db.Query(ctx, query, orgID)
 	if err != nil {
 		return "", fmt.Errorf("failed to query audit logs for export: %w", err)
 	}

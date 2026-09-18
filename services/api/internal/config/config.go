@@ -16,10 +16,10 @@ type Config struct {
 	DatabaseURL        string
 	DatabaseMaxConns   int32
 	CorsAllowedOrigins []string
-	OIDCProviderURL    string
+	OIDCIssuerURL      string
 	OIDCAudience       string
 	OIDCJwksURL        string
-	AuthDevMode        bool
+	OIDCAllowedAlgs    []string
 }
 
 func Load() (*Config, error) {
@@ -35,7 +35,7 @@ func Load() (*Config, error) {
 
 	host := getEnv("API_HOST", "0.0.0.0")
 	logLevel := getEnv("LOG_LEVEL", "info")
-	dbURL := getEnv("DATABASE_URL", "postgres://finintel_user:placeholder_pass@localhost:5432/finintel_dev?sslmode=disable")
+	dbURL := getEnv("DATABASE_URL", "postgres://finintel_app_login:placeholder_pass@localhost:5432/finintel?sslmode=disable")
 
 	maxConnsStr := getEnv("DATABASE_MAX_CONNS", "25")
 	maxConns, err := strconv.ParseInt(maxConnsStr, 10, 32)
@@ -51,11 +51,19 @@ func Load() (*Config, error) {
 		}
 	}
 
-	oidcProvider := getEnv("OIDC_ISSUER_URL", "http://localhost:8081/realms/finintel")
+	oidcIssuer := getEnv("OIDC_ISSUER_URL", "http://localhost:8081/realms/finintel")
 	oidcAudience := getEnv("OIDC_AUDIENCE", "finintel-api")
-	oidcJwksURL := getEnv("OIDC_JWKS_URL", "http://localhost:8081/realms/finintel/protocol/openid-connect/certs")
-	authDevModeStr := getEnv("AUTH_DEV_MODE", "true")
-	authDevMode := strings.ToLower(authDevModeStr) == "true" || env == "development"
+	oidcJwksURL := getEnv("OIDC_JWKS_URL", "")
+	oidcAlgsRaw := getEnv("OIDC_ALLOWED_ALGS", "RS256")
+	var oidcAllowedAlgs []string
+	for _, alg := range strings.Split(oidcAlgsRaw, ",") {
+		if trimmed := strings.TrimSpace(alg); trimmed != "" {
+			oidcAllowedAlgs = append(oidcAllowedAlgs, trimmed)
+		}
+	}
+	if len(oidcAllowedAlgs) == 0 {
+		oidcAllowedAlgs = []string{"RS256"}
+	}
 
 	cfg := &Config{
 		Env:                env,
@@ -65,10 +73,10 @@ func Load() (*Config, error) {
 		DatabaseURL:        dbURL,
 		DatabaseMaxConns:   int32(maxConns),
 		CorsAllowedOrigins: corsOrigins,
-		OIDCProviderURL:    oidcProvider,
+		OIDCIssuerURL:      oidcIssuer,
 		OIDCAudience:       oidcAudience,
 		OIDCJwksURL:        oidcJwksURL,
-		AuthDevMode:        authDevMode,
+		OIDCAllowedAlgs:    oidcAllowedAlgs,
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -79,13 +87,36 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	if c.Env == "production" || c.Env == "staging" {
-		if c.DatabaseURL == "" || strings.Contains(c.DatabaseURL, "placeholder_pass") {
-			return fmt.Errorf("DATABASE_URL must be explicitly configured with production credentials in %s environment", c.Env)
-		}
-	}
 	if c.Port <= 0 || c.Port > 65535 {
 		return fmt.Errorf("invalid port number: %d", c.Port)
+	}
+	if c.OIDCIssuerURL == "" {
+		return fmt.Errorf("OIDC_ISSUER_URL must not be empty")
+	}
+	if c.OIDCAudience == "" {
+		return fmt.Errorf("OIDC_AUDIENCE must not be empty")
+	}
+
+	// Validate allowed algorithms: RS256 is the only permitted algorithm unless explicitly approved
+	if len(c.OIDCAllowedAlgs) == 0 {
+		return fmt.Errorf("OIDC_ALLOWED_ALGS must contain at least one algorithm")
+	}
+	for _, alg := range c.OIDCAllowedAlgs {
+		if alg != "RS256" {
+			return fmt.Errorf("unsupported OIDC algorithm '%s': only RS256 is allowed", alg)
+		}
+	}
+
+	if c.Env == "production" || c.Env == "staging" {
+		if c.DatabaseURL == "" || strings.Contains(c.DatabaseURL, "placeholder_pass") || strings.Contains(c.DatabaseURL, "localhost") {
+			return fmt.Errorf("DATABASE_URL contains default/placeholder values unacceptable in %s environment", c.Env)
+		}
+		if !strings.HasPrefix(c.OIDCIssuerURL, "https://") {
+			return fmt.Errorf("OIDC_ISSUER_URL must use HTTPS in %s environment", c.Env)
+		}
+		if c.OIDCJwksURL != "" && !strings.HasPrefix(c.OIDCJwksURL, "https://") {
+			return fmt.Errorf("OIDC_JWKS_URL must use HTTPS in %s environment", c.Env)
+		}
 	}
 	return nil
 }

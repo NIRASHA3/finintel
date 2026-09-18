@@ -11,6 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
 var ErrDatabaseUnavailable = errors.New("database connection is unavailable")
@@ -38,6 +40,16 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
+}
+
 func EncodeCursor(t time.Time, id string) string {
 	str := fmt.Sprintf("%s|%s", t.Format(time.RFC3339Nano), id)
 	return base64.URLEncoding.EncodeToString([]byte(str))
@@ -59,9 +71,9 @@ func DecodeCursor(cursor string) (time.Time, string, error) {
 	return t, parts[1], nil
 }
 
-// ListAuditLogs retrieves audit logs for an organization using keyset cursor pagination.
 func (s *Service) ListAuditLogs(ctx context.Context, orgID string, cursor string, limit int) ([]AuditLog, string, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, "", ErrDatabaseUnavailable
 	}
 
@@ -98,7 +110,7 @@ func (s *Service) ListAuditLogs(ctx context.Context, orgID string, cursor string
 			ORDER BY al.created_at DESC, al.id DESC
 			LIMIT $4;
 		`
-		rows, err = s.db.Query(ctx, query, orgID, cursorTime, cursorID, limit+1)
+		rows, err = db.Query(ctx, query, orgID, cursorTime, cursorID, limit+1)
 	} else {
 		query := `
 			SELECT 
@@ -120,7 +132,7 @@ func (s *Service) ListAuditLogs(ctx context.Context, orgID string, cursor string
 			ORDER BY al.created_at DESC, al.id DESC
 			LIMIT $2;
 		`
-		rows, err = s.db.Query(ctx, query, orgID, limit+1)
+		rows, err = db.Query(ctx, query, orgID, limit+1)
 	}
 
 	if err != nil {

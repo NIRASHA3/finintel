@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -39,8 +40,19 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
+}
+
 func (s *Service) GetDashboardMetrics(ctx context.Context, orgID string) (*DashboardMetrics, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -60,7 +72,7 @@ func (s *Service) GetDashboardMetrics(ctx context.Context, orgID string) (*Dashb
 		WHERE a.organization_id = $1 AND a.is_active = true
 		GROUP BY a.account_type;
 	`
-	rows, err := s.db.Query(ctx, query, orgID)
+	rows, err := db.Query(ctx, query, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query account balances for dashboard: %w", err)
 	}
@@ -103,7 +115,7 @@ func (s *Service) GetDashboardMetrics(ctx context.Context, orgID string) (*Dashb
 		  AND (LOWER(a.name) LIKE '%cash%' OR LOWER(a.name) LIKE '%bank%' OR LOWER(a.name) LIKE '%operating%');
 	`
 	var cashPos int64
-	err = s.db.QueryRow(ctx, cashQuery, orgID).Scan(&cashPos)
+	err = db.QueryRow(ctx, cashQuery, orgID).Scan(&cashPos)
 	if err == nil && cashPos > 0 {
 		metrics.CashPosition = cashPos
 	} else if totalAssets > 0 {
@@ -112,7 +124,7 @@ func (s *Service) GetDashboardMetrics(ctx context.Context, orgID string) (*Dashb
 
 	// Monthly Burn Rate: Total Expense divided by closed/active periods (or fallback to total expense if <= 1 month)
 	var periodCount int64
-	_ = s.db.QueryRow(ctx, `SELECT COUNT(*) FROM fiscal_periods WHERE organization_id = $1 AND status IN ('CLOSED', 'LOCKED');`, orgID).Scan(&periodCount)
+	_ = db.QueryRow(ctx, `SELECT COUNT(*) FROM fiscal_periods WHERE organization_id = $1 AND status IN ('CLOSED', 'LOCKED');`, orgID).Scan(&periodCount)
 	if periodCount < 1 {
 		periodCount = 1
 	}
@@ -141,7 +153,7 @@ func (s *Service) GetDashboardMetrics(ctx context.Context, orgID string) (*Dashb
 		HAVING SUM(jel.debit_amount_minor_units - jel.credit_amount_minor_units) > 0
 		ORDER BY amount DESC;
 	`
-	expRows, err := s.db.Query(ctx, expQuery, orgID)
+	expRows, err := db.Query(ctx, expQuery, orgID)
 	if err == nil {
 		for expRows.Next() {
 			var code, name string

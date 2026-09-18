@@ -8,6 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
 var (
@@ -51,8 +53,19 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
+}
+
 func (s *Service) SeedDefaultAccounts(ctx context.Context, orgID string) ([]Account, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -72,33 +85,24 @@ func (s *Service) SeedDefaultAccounts(ctx context.Context, orgID string) ([]Acco
 		{AccountCode: "5040", Name: "Office Rent & Utilities Expense", AccountType: TypeExpense},
 	}
 
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start seeding transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
 	query := `
 		INSERT INTO accounts (organization_id, account_code, name, account_type, is_active)
 		VALUES ($1, $2, $3, $4, true)
 		ON CONFLICT (organization_id, account_code) DO NOTHING;
 	`
 	for _, acc := range defaultAccounts {
-		_, err := tx.Exec(ctx, query, orgID, acc.AccountCode, acc.Name, string(acc.AccountType))
+		_, err := db.Exec(ctx, query, orgID, acc.AccountCode, acc.Name, string(acc.AccountType))
 		if err != nil {
 			return nil, fmt.Errorf("failed to seed account %s: %w", acc.AccountCode, err)
 		}
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit account seeding: %w", err)
 	}
 
 	return s.ListAccounts(ctx, orgID)
 }
 
 func (s *Service) CreateAccount(ctx context.Context, orgID string, params CreateAccountParams) (*Account, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -125,7 +129,7 @@ func (s *Service) CreateAccount(ctx context.Context, orgID string, params Create
 		RETURNING id, organization_id, account_code, name, account_type, is_active;
 	`
 	var acc Account
-	err := s.db.QueryRow(ctx, query, orgID, code, name, string(accType)).Scan(
+	err := db.QueryRow(ctx, query, orgID, code, name, string(accType)).Scan(
 		&acc.ID, &acc.OrganizationID, &acc.AccountCode, &acc.Name, &acc.AccountType, &acc.IsActive,
 	)
 	if err != nil {
@@ -139,7 +143,8 @@ func (s *Service) CreateAccount(ctx context.Context, orgID string, params Create
 }
 
 func (s *Service) ListAccounts(ctx context.Context, orgID string) ([]Account, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -149,7 +154,7 @@ func (s *Service) ListAccounts(ctx context.Context, orgID string) ([]Account, er
 		WHERE organization_id = $1
 		ORDER BY account_code ASC;
 	`
-	rows, err := s.db.Query(ctx, query, orgID)
+	rows, err := db.Query(ctx, query, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query accounts: %w", err)
 	}
@@ -171,5 +176,4 @@ func (s *Service) ListAccounts(ctx context.Context, orgID string) ([]Account, er
 	return accounts, nil
 }
 
-// Silence unused pgx error import if needed
 var _ = pgx.ErrNoRows

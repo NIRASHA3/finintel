@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
 var (
@@ -63,7 +65,7 @@ func (s *Service) AutoMatch(ctx context.Context, orgID string, bankTransactions 
 
 	var journalEntries []MatchedJournalEntry
 
-	if s.db != nil {
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
 		query := `
 			SELECT e.id, e.entry_number, e.transaction_date::text, e.description,
 			       COALESCE(SUM(l.debit_amount_minor_units), 0) as total_amount
@@ -72,7 +74,7 @@ func (s *Service) AutoMatch(ctx context.Context, orgID string, bankTransactions 
 			WHERE e.organization_id = $1 AND e.status = 'POSTED'
 			GROUP BY e.id, e.entry_number, e.transaction_date, e.description;
 		`
-		rows, err := s.db.Query(ctx, query, orgID)
+		rows, err := tx.Query(ctx, query, orgID)
 		if err == nil {
 			for rows.Next() {
 				var je MatchedJournalEntry

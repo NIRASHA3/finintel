@@ -15,6 +15,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/NIRASHA3/finintel/services/api/internal/transport/http/middleware"
 )
 
 var (
@@ -62,8 +64,19 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
+func (s *Service) getDB(ctx context.Context) middleware.DBTX {
+	if s == nil {
+		return nil
+	}
+	if tx, ok := middleware.GetTxFromContext(ctx); ok && tx != nil {
+		return tx
+	}
+	return nil
+}
+
 func (s *Service) ParseAndStageCSV(ctx context.Context, orgID string, r io.Reader) (int, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return 0, ErrDatabaseUnavailable
 	}
 
@@ -127,11 +140,10 @@ func (s *Service) ParseAndStageCSV(ctx context.Context, orgID string, r io.Reade
 		hashStr := fmt.Sprintf("%s|%s|%d|%s", orgID, txDate, amtMinor, desc)
 		hash := fmt.Sprintf("%x", sha256.Sum256([]byte(hashStr)))
 
-		// SHA-256 Deduplication check via reference_number
 		var exists bool
 		dupQuery := `SELECT EXISTS(SELECT 1 FROM staged_transactions WHERE organization_id = $1 AND reference_number = $2);`
-		if err := s.db.QueryRow(ctx, dupQuery, orgID, hash).Scan(&exists); err == nil && exists {
-			continue // Skip duplicate
+		if err := db.QueryRow(ctx, dupQuery, orgID, hash).Scan(&exists); err == nil && exists {
+			continue
 		}
 
 		sID, conf := matchAccountRule(desc, rules)
@@ -145,7 +157,7 @@ func (s *Service) ParseAndStageCSV(ctx context.Context, orgID string, r io.Reade
 			nullAccID = nil
 		}
 
-		_, err = s.db.Exec(ctx, query, orgID, txDate, desc, amtMinor, hash, nullAccID, conf)
+		_, err = db.Exec(ctx, query, orgID, txDate, desc, amtMinor, hash, nullAccID, conf)
 		if err == nil {
 			insertedCount++
 		}
@@ -155,7 +167,8 @@ func (s *Service) ParseAndStageCSV(ctx context.Context, orgID string, r io.Reade
 }
 
 func (s *Service) ListStagedTransactions(ctx context.Context, orgID string, statusFilter string) ([]StagedTransaction, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -172,11 +185,12 @@ func (s *Service) ListStagedTransactions(ctx context.Context, orgID string, stat
 	args := []interface{}{orgID}
 
 	if statusFilter != "" && statusFilter != "ALL" {
-		if statusFilter == "PENDING" {
+		switch statusFilter {
+		case "PENDING":
 			query += ` AND st.status = 'PENDING_REVIEW'`
-		} else if statusFilter == "POSTED" {
+		case "POSTED":
 			query += ` AND st.posted_journal_entry_id IS NOT NULL`
-		} else {
+		default:
 			query += ` AND st.status = $2`
 			args = append(args, statusFilter)
 		}
@@ -184,7 +198,7 @@ func (s *Service) ListStagedTransactions(ctx context.Context, orgID string, stat
 
 	query += ` ORDER BY st.transaction_date DESC, st.created_at DESC;`
 
-	rows, err := s.db.Query(ctx, query, args...)
+	rows, err := db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query staged transactions: %w", err)
 	}
@@ -221,7 +235,8 @@ func (s *Service) ListStagedTransactions(ctx context.Context, orgID string, stat
 }
 
 func (s *Service) ApproveStagedTransaction(ctx context.Context, orgID string, id string, targetAccountID string) (*StagedTransaction, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -236,7 +251,7 @@ func (s *Service) ApproveStagedTransaction(ctx context.Context, orgID string, id
 	`
 	var item StagedTransaction
 	var rawStatus string
-	err := s.db.QueryRow(ctx, query, orgID, id, targetAccountID).Scan(
+	err := db.QueryRow(ctx, query, orgID, id, targetAccountID).Scan(
 		&item.ID, &item.OrganizationID, &item.TransactionDate, &item.Description, &item.AmountMinorUnits,
 		&item.RawDataHash, &rawStatus, &item.SuggestedAccountID, &item.ConfidenceScore, &item.CreatedAt,
 	)
@@ -256,7 +271,8 @@ func (s *Service) ApproveStagedTransaction(ctx context.Context, orgID string, id
 }
 
 func (s *Service) RejectStagedTransaction(ctx context.Context, orgID string, id string) (*StagedTransaction, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
 
@@ -268,7 +284,7 @@ func (s *Service) RejectStagedTransaction(ctx context.Context, orgID string, id 
 	`
 	var item StagedTransaction
 	var rawStatus string
-	err := s.db.QueryRow(ctx, query, orgID, id).Scan(
+	err := db.QueryRow(ctx, query, orgID, id).Scan(
 		&item.ID, &item.OrganizationID, &item.TransactionDate, &item.Description, &item.AmountMinorUnits,
 		&item.RawDataHash, &rawStatus, &item.SuggestedAccountID, &item.ConfidenceScore, &item.CreatedAt,
 	)
@@ -284,20 +300,15 @@ func (s *Service) RejectStagedTransaction(ctx context.Context, orgID string, id 
 }
 
 func (s *Service) BatchPostApprovedTransactions(ctx context.Context, orgID string, userID string) (*BatchPostResult, error) {
-	if s.db == nil {
+	db := s.getDB(ctx)
+	if db == nil {
 		return nil, ErrDatabaseUnavailable
 	}
-
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start batch posting transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
 
 	// 1. Find Operating Cash Account (Code 1010)
 	var cashAccountID string
 	cashQuery := `SELECT id FROM accounts WHERE organization_id = $1 AND account_code = '1010' AND is_active = true LIMIT 1;`
-	if err := tx.QueryRow(ctx, cashQuery, orgID).Scan(&cashAccountID); err != nil {
+	if err := db.QueryRow(ctx, cashQuery, orgID).Scan(&cashAccountID); err != nil {
 		return nil, ErrCashAccountNotFound
 	}
 
@@ -307,7 +318,7 @@ func (s *Service) BatchPostApprovedTransactions(ctx context.Context, orgID strin
 		FROM staged_transactions
 		WHERE organization_id = $1 AND status = 'APPROVED' AND suggested_category IS NOT NULL AND posted_journal_entry_id IS NULL;
 	`
-	rows, err := tx.Query(ctx, stagedQuery, orgID)
+	rows, err := db.Query(ctx, stagedQuery, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query approved staged transactions: %w", err)
 	}
@@ -337,18 +348,17 @@ func (s *Service) BatchPostApprovedTransactions(ctx context.Context, orgID strin
 	for _, item := range approvedItems {
 		var nextEntryNum int64
 		numQuery := `SELECT COALESCE(MAX(entry_number), 0) + 1 FROM journal_entries WHERE organization_id = $1;`
-		if err := tx.QueryRow(ctx, numQuery, orgID).Scan(&nextEntryNum); err != nil {
+		if err := db.QueryRow(ctx, numQuery, orgID).Scan(&nextEntryNum); err != nil {
 			return nil, fmt.Errorf("failed to generate entry number: %w", err)
 		}
 
-		// Create Journal Entry
 		insertEntryQuery := `
 			INSERT INTO journal_entries (organization_id, entry_number, transaction_date, description, status, posted_by_user_id)
 			VALUES ($1, $2, $3::date, $4, 'POSTED', $5)
 			RETURNING id;
 		`
 		var entryID string
-		if err := tx.QueryRow(ctx, insertEntryQuery, orgID, nextEntryNum, item.transactionDate, item.description, userID).Scan(&entryID); err != nil {
+		if err := db.QueryRow(ctx, insertEntryQuery, orgID, nextEntryNum, item.transactionDate, item.description, userID).Scan(&entryID); err != nil {
 			return nil, fmt.Errorf("failed to insert journal entry for staged item %s: %w", item.id, err)
 		}
 
@@ -359,18 +369,15 @@ func (s *Service) BatchPostApprovedTransactions(ctx context.Context, orgID strin
 		`
 
 		if item.amountMinorUnits > 0 {
-			// Income: Debit Cash (1010), Credit Target Account
-			_, _ = tx.Exec(ctx, insertLineQuery, orgID, entryID, cashAccountID, absAmount, 0, "Cash Inflow")
-			_, _ = tx.Exec(ctx, insertLineQuery, orgID, entryID, item.suggestedAccountID, 0, absAmount, item.description)
+			_, _ = db.Exec(ctx, insertLineQuery, orgID, entryID, cashAccountID, absAmount, 0, "Cash Inflow")
+			_, _ = db.Exec(ctx, insertLineQuery, orgID, entryID, item.suggestedAccountID, 0, absAmount, item.description)
 		} else {
-			// Expense: Debit Target Account, Credit Cash (1010)
-			_, _ = tx.Exec(ctx, insertLineQuery, orgID, entryID, item.suggestedAccountID, absAmount, 0, item.description)
-			_, _ = tx.Exec(ctx, insertLineQuery, orgID, entryID, cashAccountID, 0, absAmount, "Cash Outflow")
+			_, _ = db.Exec(ctx, insertLineQuery, orgID, entryID, item.suggestedAccountID, absAmount, 0, item.description)
+			_, _ = db.Exec(ctx, insertLineQuery, orgID, entryID, cashAccountID, 0, absAmount, "Cash Outflow")
 		}
 
-		// Update staged transaction with posted_journal_entry_id
 		updateStagedQuery := `UPDATE staged_transactions SET posted_journal_entry_id = $3 WHERE organization_id = $1 AND id = $2;`
-		if _, err := tx.Exec(ctx, updateStagedQuery, orgID, item.id, entryID); err != nil {
+		if _, err := db.Exec(ctx, updateStagedQuery, orgID, item.id, entryID); err != nil {
 			return nil, fmt.Errorf("failed to update staged transaction posted_journal_entry_id: %w", err)
 		}
 
@@ -379,7 +386,6 @@ func (s *Service) BatchPostApprovedTransactions(ctx context.Context, orgID strin
 		result.TotalCreditsMinorUnits += absAmount
 	}
 
-	// Record atomic audit log entry
 	auditChanges, _ := json.Marshal(map[string]interface{}{
 		"posted_count": result.PostedEntriesCount,
 		"total_debits": result.TotalDebitsMinorUnits,
@@ -389,20 +395,20 @@ func (s *Service) BatchPostApprovedTransactions(ctx context.Context, orgID strin
 		VALUES ($1, $2, 'USER', $3, 'STAGED_TRANSACTION', $1, 'POST', $4);
 	`
 	correlationID := fmt.Sprintf("batch-post-%d", time.Now().Unix())
-	if _, err := tx.Exec(ctx, insertAuditQuery, orgID, userID, correlationID, auditChanges); err != nil {
+	if _, err := db.Exec(ctx, insertAuditQuery, orgID, userID, correlationID, auditChanges); err != nil {
 		return nil, fmt.Errorf("failed to record batch post audit log: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit batch post transaction: %w", err)
 	}
 
 	return result, nil
 }
 
 func (s *Service) loadAccountRules(ctx context.Context, orgID string) []AccountRule {
+	db := s.getDB(ctx)
+	if db == nil {
+		return nil
+	}
 	query := `SELECT id, account_code, name FROM accounts WHERE organization_id = $1 AND is_active = true;`
-	rows, err := s.db.Query(ctx, query, orgID)
+	rows, err := db.Query(ctx, query, orgID)
 	if err != nil {
 		return nil
 	}
