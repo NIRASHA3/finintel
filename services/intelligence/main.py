@@ -6,6 +6,7 @@ unsupervised anomaly detection, and cash flow forecasting.
 
 import datetime
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
@@ -71,11 +72,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS
+# Browser CORS is opt-in and exact. Server-to-server requests do not require CORS.
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

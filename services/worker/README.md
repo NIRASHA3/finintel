@@ -4,7 +4,7 @@
 `services/worker` is an asynchronous Go processing application designed to handle background tasks such as batch CSV transaction parsing, financial PDF statement generation, and scheduled audit rollups.
 
 ## Status
-* **Milestone 0**: Blueprint directory established. Worker implementation is deferred to **Milestone 3**.
+* The worker remains a planned component; no executable service or Docker image exists yet, so it is intentionally absent from Compose and the Render deployment plan.
 
 ## Planned Scope & Features
 - Asynchronous task processing under strict tenant isolation context.

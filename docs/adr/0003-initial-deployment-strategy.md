@@ -1,28 +1,28 @@
-# ADR 0003: Initial Deployment Strategy - Vercel, OIDC IdP & Managed PostgreSQL
+# ADR 0003: Vercel, Neon, and Render deployment
 
-* **Status**: Accepted
-* **Date**: 2026-08-09
-* **Deciders**: Infrastructure & Architecture Team
+* **Status**: Accepted (supersedes the earlier generic/AWS-capable Phase 9 plan)
+* **Updated**: 2026-09-16
 
-## Context & Problem Statement
-FinIntel requires an initial deployment architecture that supports rapid front-end iteration, global CDN edge delivery for the Next.js client, delegated identity federation via OIDC, managed PostgreSQL database infrastructure, and a portable backend strategy for the Go API.
+## Context
 
-## Decision Drivers
-* Speed of deployment and low operational maintenance for initial launch.
-* Native integration with Next.js App Router features (SSR, edge caching).
-* Portability requirement: Go API must remain portable to migrate to AWS ECS/Fargate, GCP Cloud Run, or dedicated Kubernetes clusters without rewriting business logic.
+FinIntel needs an initial deployment with low operational cost, native Next.js hosting, managed PostgreSQL, and portable container hosting. AWS and Terraform are no longer part of Phase 9.
 
-## Decision Outcome
-Chosen Option: **Deploy Next.js Web App to Vercel, integrate provider-neutral OIDC IdP (e.g. Auth0 / Keycloak / Clerk), utilize Managed PostgreSQL, and maintain Portable Go API Service**.
+## Decision
 
-### Deployment Architecture Details
-1. **Web App**: Deployed natively on Vercel platform.
-2. **Identity Provider**: External OIDC Identity Provider managing user credential storage, MFA, and OAuth2 token issuance.
-3. **Database**: Managed PostgreSQL provider accessed via SSL-encrypted `DATABASE_URL` with transaction pooling enabled.
-4. **Go Core API**: Packaged as standard Go binary/container, capable of running as Vercel Go Serverless Functions, AWS Fargate container, or GCP Cloud Run service. Validates tokens via IdP `OIDC_JWKS_URL`.
-5. **Python Intelligence**: Containerized FastAPI service hosted on managed container platform (e.g. AWS ECS / GCP Cloud Run).
+1. Deploy `apps/web` to Vercel.
+2. Use an external provider-neutral OIDC identity provider for passwords, MFA, recovery, and SSO.
+3. Host PostgreSQL on Neon with TLS, pooled runtime connections, and a separate migration path.
+4. Deploy the Go API and Python intelligence service as independent Docker web services on Render.
+5. Do not deploy the planned worker until an executable worker service and queue design exist.
+6. Use root Docker Compose for local topology parity; local PostgreSQL substitutes for Neon.
+7. Configure resources manually through the platform dashboards for the initial release. No Terraform state or AWS resources are required.
 
-### Positive Consequences
-* Zero infrastructure setup overhead for Next.js frontend hosting or password database management.
-* Highly resilient database managed with automated continuous WAL backup and point-in-time recovery.
-* High backend portability ensuring no platform lock-in for the core Go domain logic.
+## Consequences
+
+- The Go and Python services remain portable OCI containers.
+- Cross-origin configuration, OIDC callbacks, service URLs, and secrets span three providers and must be managed explicitly.
+- Free tiers may cold-start, throttle, or change quotas; the project makes no uptime guarantee based on them.
+- Database migrations remain an explicit release step rather than running automatically in every API instance.
+- Preview deployments require deliberate CORS and OIDC callback allow-list management.
+
+Operational steps are documented in `infrastructure/DEPLOYMENT.md`.

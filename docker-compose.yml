@@ -1,0 +1,108 @@
+name: finintel
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: finintel_dev
+      POSTGRES_USER: finintel_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-finintel_local_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - finintel_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finintel_user -d finintel_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [data]
+
+  migrations:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.migrations
+    command:
+      - postgres://finintel_user:${POSTGRES_PASSWORD:-finintel_local_only}@postgres:5432/finintel_dev?sslmode=disable
+      - up
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks: [data]
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    environment:
+      APP_ENV: development
+      API_HOST: 0.0.0.0
+      API_PORT: 8080
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://finintel_user:${POSTGRES_PASSWORD:-finintel_local_only}@postgres:5432/finintel_dev?sslmode=disable
+      DATABASE_MAX_CONNS: 10
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      AUTH_DEV_MODE: "true"
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-http://host.docker.internal:8081/realms/finintel}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-finintel-api}
+      OIDC_JWKS_URL: ${OIDC_JWKS_URL:-http://host.docker.internal:8081/realms/finintel/protocol/openid-connect/certs}
+      INTELLIGENCE_SERVICE_URL: http://intelligence:8000
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      intelligence:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks: [app, data]
+
+  intelligence:
+    build:
+      context: services/intelligence
+      dockerfile: Dockerfile
+    environment:
+      PORT: 8000
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks: [app]
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    environment:
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [app]
+
+volumes:
+  finintel_postgres_data:
+
+networks:
+  app:
+  data:
+    internal: true

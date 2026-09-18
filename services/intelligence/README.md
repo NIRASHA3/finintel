@@ -1,10 +1,19 @@
-# Intelligence & Analytics Service (`services/intelligence`)
+# Intelligence service
 
-## Overview
-`services/intelligence` is a Python analytics service built with FastAPI, pandas, scikit-learn, and statsmodels. It provides machine-learning transaction category suggestions, anomaly detection scores, and cash flow projections.
+This FastAPI service implements advisory transaction category suggestions, anomaly detection, and cash-flow forecasts using pandas, scikit-learn, and statsmodels.
 
-## Status
-* **Milestone 0**: Blueprint directory established. Python service implementation is deferred to **Milestone 4**.
+It cannot write to PostgreSQL or post journal entries. Responses expose confidence/explanation/model metadata for human review by the web and Go services.
 
-## Critical Architectural Constraint
-- **Advisory Boundary**: This service is strictly advisory. It CANNOT directly mutate the PostgreSQL database or automatically post financial journal entries. All outputs must expose confidence score, explanation text, and model version for human review.
+## Run and test
+
+```bash
+cd services/intelligence
+python -m venv .venv
+python -m pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+python -m pytest
+```
+
+Endpoints include `/health`, `/api/v1/predict/category`, batch category prediction, anomaly detection, and cash-flow forecasting. See `main.py` and the Pydantic schemas for the implemented contract.
+
+The Docker image accepts Render’s `PORT` variable. For production, restrict CORS and authenticate calls from the Go API before exposing this service publicly.

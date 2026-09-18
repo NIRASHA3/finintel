@@ -7,7 +7,7 @@ export default function AuditPage() {
     <div className="space-y-6">
       <PageHeader
         title="Compliance Audit Trail"
-        description="Immutable, cryptographically verifiable log of all administrative actions, journal commits, and security events."
+        description="Append-only history of administrative actions, journal activity, and recorded security events."
         breadcrumbs={[
           { label: "Dashboard", href: "/" },
           { label: "Audit Trail" },

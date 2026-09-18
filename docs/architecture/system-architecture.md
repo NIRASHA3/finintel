@@ -1,7 +1,7 @@
 # System Architecture Specification
 
 ## 1. Executive Summary
-FinIntel is designed as a multi-tenant, modular monolith financial operations platform. It combines a Next.js web application frontend (`apps/web`), a Go core REST API engine (`services/api`), a Go background worker (`services/worker`), and a Python advisory intelligence service (`services/intelligence`) backed by PostgreSQL and an external OIDC Identity Provider.
+FinIntel is designed as a multi-tenant financial operations platform. It combines a Next.js frontend (`apps/web`), a Go core REST API (`services/api`), and a Python advisory intelligence service (`services/intelligence`) backed by PostgreSQL and an external OIDC Identity Provider. A Go worker is planned but not currently implemented or deployed.
 
 ---
 
@@ -18,7 +18,7 @@ graph TD
         GoAPI -->|Auth Middleware| Router["chi Router / Middleware"]
         Router -->|RBAC & Tenant Scoping| Services["Accounting & Domain Services"]
         Services -->|Atomic SQL Transactions| Postgres[("PostgreSQL Database")]
-        Services -->|Async Processing| Worker["Go Background Worker (services/worker)"]
+        Services -.->|Planned async processing| Worker["Planned Go Worker (not deployed)"]
     end
 
     subgraph Intelligence Subsystem
@@ -50,7 +50,7 @@ graph TD
 - Initiates OIDC login flow with the IdP and attaches Bearer JWT access tokens to Go API requests.
 
 ### 3.3 Go Core API (`services/api`)
-- Resource server built with Go `chi` router, `pgx` driver, and `sqlc` database queries.
+- Resource server built with Go `chi` router and the `pgx` PostgreSQL driver.
 - Validates OIDC JWT signatures via public JWKS endpoints, verifying issuer (`iss`) and audience (`aud`).
 - Maps OIDC subject claims (`sub`) to local application user profiles and tenant organization memberships.
 - Owns all business, accounting, validation, and authorization logic.
@@ -67,6 +67,14 @@ graph TD
 ### 3.6 PostgreSQL Database
 - Single persistent source of truth for multi-tenant data, user profiles, chart of accounts, staged transactions, immutable posted journal entries, and audit logs.
 - Stores user profiles mapped to OIDC external subject identifiers (`external_subject_id`). Passwords are NOT stored in PostgreSQL.
+
+### 3.7 Deployment topology
+
+- Vercel hosts the Next.js application.
+- Render hosts separate Docker services for the Go API and Python intelligence service.
+- Neon hosts PostgreSQL with TLS and pooled runtime connections.
+- Docker Compose mirrors these boundaries for local testing.
+- AWS and Terraform are not used for the initial deployment.
 
 ---
 

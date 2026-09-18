@@ -27,7 +27,8 @@ func Load() (*Config, error) {
 
 	env := getEnv("APP_ENV", "development")
 
-	portStr := getEnv("API_PORT", "8080")
+	// Render injects PORT. Prefer it when present; API_PORT remains the local override.
+	portStr := getEnv("PORT", getEnv("API_PORT", "8080"))
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid API_PORT value '%s': %w", portStr, err)

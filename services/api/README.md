@@ -1,63 +1,35 @@
-# FinIntel Core API Service (`services/api`)
+# FinIntel Core API
 
-## Overview
-`services/api` is the Core API backend for FinIntel, built as a portable Go modular monolith. It serves as the single source of truth for business logic, financial ledger entries, database transactions, multi-tenant isolation, and data access.
+The Go core API is the authority for tenant-scoped financial operations, double-entry validation, period controls, audit recording, and PostgreSQL access. It uses `chi/v5`, `pgx/v5`, and structured `slog` logging.
 
-* **Module Path**: `github.com/NIRASHA3/finintel/services/api`
-* **Router**: `chi/v5`
-* **Database Driver / Pool**: `pgx/v5` (`pgxpool`)
-* **Logging**: Structured JSON logging via standard library `log/slog`
-
-## Component Structure
-
-```text
-services/api/
-├── cmd/
-│   └── server/
-│       └── main.go                 # Server entrypoint & graceful OS signal shutdown
-├── internal/
-│   ├── config/
-│   │   ├── config.go               # Environment config loader & production validator
-│   │   └── config_test.go          # Config unit tests
-│   ├── platform/
-│   │   └── database/
-│   │       ├── database.go         # pgxpool database connection pool manager
-│   │       └── database_test.go    # Connection pool unit tests
-│   └── transport/
-│       └── http/
-│           ├── health.go           # GET /health/live & /health/ready handlers
-│           ├── health_test.go      # Health handler unit tests
-│           └── router.go           # chi router, middlewares, panic recovery
-├── go.mod                          # Go module definition
-├── go.sum                          # Go dependency checksums
-└── README.md                       # Service documentation
-```
-
-## Environment Configuration
-
-| Variable | Default | Description |
-|---|---|---|
-| `APP_ENV` | `development` | Deployment environment (`development`, `staging`, `production`) |
-| `API_HOST` | `0.0.0.0` | Server bind host address |
-| `API_PORT` | `8080` | Server bind port |
-| `LOG_LEVEL` | `info` | Minimum log severity level (`debug`, `info`, `warn`, `error`) |
-| `DATABASE_URL` | `postgres://finintel_user:placeholder_pass@localhost:5432/finintel_dev?sslmode=disable` | PostgreSQL connection string |
-| `DATABASE_MAX_CONNS` | `25` | Maximum active PostgreSQL pool connections |
-
-## HTTP Endpoints (Milestone 1)
-
-* `GET /health/live`: Process liveness check. Returns HTTP 200 `{"status": "UP"}`.
-* `GET /health/ready`: Dependency readiness check. Returns HTTP 200 `{"status": "UP", "checks": {"database": "UP"}}` when PostgreSQL is connected, or HTTP 503 `{"status": "DOWN", "checks": {"database": "DOWN"}}` when PostgreSQL is unreachable.
-
-## Verification & Local Commands
+## Run and verify
 
 ```bash
-# Run unit tests
-go test -v ./...
-
-# Run static analysis
-go vet ./...
-
-# Check code formatting
+cd services/api
+go run ./cmd/server
 gofmt -s -l .
+go vet ./...
+go test ./...
 ```
+
+Health endpoints are `GET /health/live` and `GET /health/ready`. Domain endpoints are under `/api/v1`; the canonical public contract is in `contracts/openapi/openapi.yaml`.
+
+## Configuration
+
+| Variable | Purpose |
+|---|---|
+| `APP_ENV` | `development`, `staging`, or `production` |
+| `API_HOST` | Bind address; default `0.0.0.0` |
+| `PORT` / `API_PORT` | Bind port; Render-provided `PORT` wins when present |
+| `DATABASE_URL` | PostgreSQL/Neon connection URL; use TLS in production |
+| `DATABASE_MAX_CONNS` | Pool size; keep conservative for Neon |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated exact web origins |
+| `AUTH_DEV_MODE` | Local-only development authentication; must be `false` in production |
+| `OIDC_ISSUER_URL` | Exact OIDC issuer |
+| `OIDC_AUDIENCE` | Required access-token audience |
+| `OIDC_JWKS_URL` | Provider JWKS endpoint |
+| `INTELLIGENCE_SERVICE_URL` | Python advisory service URL |
+
+## Production security gate
+
+The current UI branch’s API middleware still contains development-token and header-derived role behavior. Merge the completed OIDC/RBAC security track before deployment. Production authorization must validate signed tokens and resolve roles from organization membership records; it must never trust a browser-provided role or default to Admin.

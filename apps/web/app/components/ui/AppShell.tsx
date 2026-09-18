@@ -79,7 +79,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       {/* Accessible Footer */}
       <footer className="w-full bg-white border-t border-slate-200 py-4 mt-auto" role="contentinfo">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 font-medium">
-          <p>&copy; 2026 FinIntel Inc. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} FinIntel. Financial operations software.</p>
           <div className="flex items-center space-x-4">
             <Link href="/organization" className="hover:text-slate-900 transition">
               Tenant Settings
@@ -89,7 +89,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               Security Audit
             </Link>
             <span aria-hidden="true">&bull;</span>
-            <span>Standard: ISO 4217 / GAAP compliant</span>
+            <span>Fixed-precision, double-entry ledger</span>
           </div>
         </div>
       </footer>

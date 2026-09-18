@@ -7,7 +7,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Financial Statement Reports"
-        description="GAAP-compliant Balance Sheet, Income Statement (Profit & Loss), and Trial Balance verification statements."
+        description="Balance Sheet, Income Statement (Profit & Loss), and Trial Balance views generated from the ledger."
         breadcrumbs={[
           { label: "Dashboard", href: "/" },
           { label: "Financial Reports" },

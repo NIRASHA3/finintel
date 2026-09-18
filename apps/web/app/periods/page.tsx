@@ -7,7 +7,7 @@ export default function PeriodsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Fiscal Periods & Hard-Lock Controls"
-        description="Accounting calendar periods, monthly close procedures, and permanent hard-locking to seal historical balances."
+        description="Accounting calendar periods, monthly close procedures, and lock controls that prevent posting to closed periods."
         breadcrumbs={[
           { label: "Dashboard", href: "/" },
           { label: "Fiscal Periods" },

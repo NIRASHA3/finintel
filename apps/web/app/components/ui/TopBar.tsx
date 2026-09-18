@@ -123,7 +123,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
             </div>
             <div className="hidden xl:block text-left">
               <div className="text-xs font-bold text-slate-900 leading-tight">
-                {user?.fullName || "Development Admin"}
+                {user?.fullName || "Local development user"}
               </div>
               <div className="text-[11px] text-slate-500 font-mono">
                 {activeOrg?.role || "OWNER"}

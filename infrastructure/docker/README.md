@@ -1,7 +1,21 @@
-# Infrastructure - Docker Containerization (`infrastructure/docker`)
+# Local container environment
 
-## Overview
-This directory will contain Dockerfiles and Compose configurations for containerizing local development dependencies (PostgreSQL, Go API, Python Intelligence service).
+The root [`docker-compose.yml`](../../docker-compose.yml) mirrors the distributed production topology with separate web, API, intelligence, migration, and database services.
 
-## Status
-* **Milestone 0**: Blueprint directory established. Docker configuration is intentionally deferred and not created in Milestone 0 per project guidelines.
+| Local service | Production analogue |
+|---|---|
+| `web` | Vercel Next.js deployment |
+| `api` | Render Docker web service |
+| `intelligence` | Render Docker web service |
+| `postgres` | Neon PostgreSQL |
+| `migrations` | One-off release migration job |
+
+```bash
+docker compose up --build
+docker compose ps
+docker compose logs -f api web intelligence
+```
+
+Stop containers with `docker compose down`. Add `--volumes` only when intentionally deleting the local PostgreSQL data volume.
+
+Local development authentication remains enabled in Compose. Production must set `APP_ENV=production`, `AUTH_DEV_MODE=false`, real OIDC values, restrictive CORS origins, and managed secrets.

@@ -40,6 +40,8 @@ goose -dir database/migrations postgres "$DATABASE_URL" status
 goose -dir database/migrations postgres "$DATABASE_URL" down
 ```
 
-## Milestone 1 Scope
-* Tooling selected, pinned (`v3.24.1`), and documented.
-* Business domain migrations and database schema tables are intentionally deferred to subsequent feature milestones.
+## Current scope
+
+The migrations create the implemented multi-tenant accounting schema and subsequent audit-log adjustment. Apply them in numeric order to local PostgreSQL or Neon. Production migrations should use a dedicated migration/owner credential; the API runtime credential must remain least-privileged.
+
+Before using Neon, test every migration against a disposable Neon branch and use `sslmode=require`.

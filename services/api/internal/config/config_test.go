@@ -12,6 +12,7 @@ import (
 func TestLoadDefaults(t *testing.T) {
 	t.Setenv("APP_ENV", "")
 	t.Setenv("API_PORT", "")
+	t.Setenv("PORT", "")
 	t.Setenv("API_HOST", "")
 	t.Setenv("LOG_LEVEL", "")
 	t.Setenv("DATABASE_URL", "")
@@ -24,6 +25,15 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, "0.0.0.0", cfg.Host)
 	assert.Equal(t, "info", cfg.LogLevel)
 	assert.Equal(t, slog.LevelInfo, cfg.SlogLevel())
+}
+
+func TestLoadUsesRenderPortWhenAPIPortIsUnset(t *testing.T) {
+	t.Setenv("API_PORT", "")
+	t.Setenv("PORT", "10000")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.Equal(t, 10000, cfg.Port)
 }
 
 func TestValidateProductionFailsWithPlaceholder(t *testing.T) {
