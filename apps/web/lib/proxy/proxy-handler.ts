@@ -7,6 +7,49 @@ export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a
 export const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const MAX_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 
+export class PayloadTooLargeError extends Error {
+  constructor() {
+    super("Request body exceeds maximum allowed size");
+    this.name = "PayloadTooLargeError";
+  }
+}
+
+export async function readRequestBodyWithLimit(
+  stream: ReadableStream<Uint8Array> | null,
+  maxBytes = MAX_PAYLOAD_BYTES
+): Promise<ArrayBuffer | undefined> {
+  if (!stream) return undefined;
+
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel("payload limit exceeded").catch(() => {});
+        throw new PayloadTooLargeError();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body.buffer;
+}
+
 export function validateAndCleanPath(rawPathSegments: string[]): { path: string; error?: string } {
   const cleanedSegments: string[] = [];
 
@@ -170,7 +213,14 @@ export async function handleProxyRequest(
 
   // 2. Payload Limit Enforcement (10MB) - Checked early for DoS protection
   const contentLength = req.headers.get("content-length");
-  if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_BYTES) {
+  const parsedContentLength = contentLength === null ? null : Number(contentLength);
+  if (parsedContentLength !== null && (!Number.isSafeInteger(parsedContentLength) || parsedContentLength < 0)) {
+    return NextResponse.json(
+      { error: "BAD_REQUEST", message: "Invalid Content-Length header" },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+  if (parsedContentLength !== null && parsedContentLength > MAX_PAYLOAD_BYTES) {
     return NextResponse.json(
       { error: "PAYLOAD_TOO_LARGE", message: "Request body exceeds maximum allowed size of 10MB" },
       { status: 413, headers: { "Cache-Control": "no-store" } }
@@ -266,11 +316,19 @@ export async function handleProxyRequest(
   // 7. Forward Body if applicable with size check
   let body: ArrayBuffer | undefined = undefined;
   if (["POST", "PUT", "PATCH"].includes(method)) {
-    body = await req.arrayBuffer();
-    if (body.byteLength > MAX_PAYLOAD_BYTES) {
+    try {
+      body = await readRequestBodyWithLimit(req.body);
+    } catch (err) {
+      if (err instanceof PayloadTooLargeError) {
+        return NextResponse.json(
+          { error: "PAYLOAD_TOO_LARGE", message: "Request body exceeds maximum allowed size of 10MB" },
+          { status: 413, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      console.error("Failed to read proxied request body:", err);
       return NextResponse.json(
-        { error: "PAYLOAD_TOO_LARGE", message: "Request body exceeds maximum allowed size of 10MB" },
-        { status: 413, headers: { "Cache-Control": "no-store" } }
+        { error: "BAD_REQUEST", message: "Unable to read request body" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
   }

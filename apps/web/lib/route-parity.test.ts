@@ -186,7 +186,7 @@ describe("Four-Way Route Parity: BFF Allowlist ↔ OpenAPI ↔ Go Router ↔ API
       await apiClient.upsertFxRate(testUUID, "USD", "EUR", 0.92, "2026-01-01");
       await apiClient.runFxRevaluation(testUUID, "USD", "EUR", 1000);
       await apiClient.fetchOrganizationMembers(testUUID);
-      await apiClient.addOrganizationMember(testUUID, "member@test.com", "ACCOUNTANT");
+      await apiClient.addOrganizationMember(testUUID, testUUID, "ACCOUNTANT");
       await apiClient.updateMemberRole(testUUID, testUUID, "ADMINISTRATOR");
       await apiClient.removeOrganizationMember(testUUID, testUUID);
 

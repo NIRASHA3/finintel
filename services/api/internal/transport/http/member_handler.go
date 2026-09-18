@@ -53,9 +53,15 @@ func (h *MemberHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 	var members []OrgMemberResponse
 	for rows.Next() {
 		var m OrgMemberResponse
-		if err := rows.Scan(&m.MembershipID, &m.UserID, &m.Email, &m.FullName, &m.Role, &m.JoinedAt); err == nil {
-			members = append(members, m)
+		if err := rows.Scan(&m.MembershipID, &m.UserID, &m.Email, &m.FullName, &m.Role, &m.JoinedAt); err != nil {
+			writeSanitizedDbError(w, err, "LIST_MEMBERS_FAILED", "Failed to list organization members")
+			return
 		}
+		members = append(members, m)
+	}
+	if err := rows.Err(); err != nil {
+		writeSanitizedDbError(w, err, "LIST_MEMBERS_FAILED", "Failed to list organization members")
+		return
 	}
 	if members == nil {
 		members = []OrgMemberResponse{}

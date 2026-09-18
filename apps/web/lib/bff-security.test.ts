@@ -5,6 +5,8 @@ import {
   validateAndCleanPath,
   validateRouteAllowlist,
   handleProxyRequest,
+  PayloadTooLargeError,
+  readRequestBodyWithLimit,
   ROUTE_ALLOWLIST,
   UUID_REGEX,
 } from "./proxy/proxy-handler";
@@ -174,6 +176,20 @@ describe("BFF Security Production Verification Suite", () => {
   });
 
   describe("4. Upstream Header Sanitization & Security Filters", () => {
+    it("bounds streamed request bodies even without Content-Length", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array([1, 2, 3]));
+          controller.enqueue(new Uint8Array([4, 5, 6]));
+          controller.close();
+        },
+      });
+
+      await expect(readRequestBodyWithLimit(stream, 5)).rejects.toBeInstanceOf(
+        PayloadTooLargeError
+      );
+    });
+
     it("rejects payloads exceeding 10MB", async () => {
       const req = new NextRequest("http://localhost:3000/api/proxy/organizations", {
         method: "POST",

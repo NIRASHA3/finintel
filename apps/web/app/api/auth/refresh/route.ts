@@ -149,33 +149,37 @@ export async function POST(req: NextRequest) {
           throw err;
         }
 
-        // Validate refreshed ID token against persisted external identity binding
-        if (tokens.id_token) {
-          try {
-            const JWKS = createRemoteJWKSet(new URL(discovery.jwks_uri));
-            const { payload } = await jwtVerify(tokens.id_token, JWKS, {
-              issuer: cfg.OIDC_ISSUER_URL,
-              audience: cfg.OIDC_CLIENT_ID,
-              algorithms: ["RS256"],
-            });
+        // A refresh must re-prove the persisted external identity before rotation.
+        if (!tokens.id_token || typeof tokens.id_token !== "string" || tokens.id_token.trim() === "") {
+          const err = new Error("TERMINAL_REVOCATION: INVALID_ID_TOKEN - Refreshed ID token is required");
+          (err as any).status = 401;
+          throw err;
+        }
 
-            if (!payload.sub || payload.sub !== claim.identitySubject) {
-              const err = new Error("TERMINAL_REVOCATION: IDENTITY_MISMATCH - ID token sub does not match external subject");
-              (err as any).status = 401;
-              throw err;
-            }
+        try {
+          const JWKS = createRemoteJWKSet(new URL(discovery.jwks_uri));
+          const { payload } = await jwtVerify(tokens.id_token, JWKS, {
+            issuer: cfg.OIDC_ISSUER_URL,
+            audience: cfg.OIDC_CLIENT_ID,
+            algorithms: ["RS256"],
+          });
 
-            if (payload.iss && payload.iss !== claim.identityIssuer) {
-              const err = new Error("TERMINAL_REVOCATION: IDENTITY_MISMATCH - ID token iss does not match external issuer");
-              (err as any).status = 401;
-              throw err;
-            }
-          } catch (e: any) {
-            console.error("Validation failed for refreshed ID token:", e?.message || e);
-            const err = new Error("TERMINAL_REVOCATION: INVALID_ID_TOKEN - Refreshed ID token validation failed");
+          if (!payload.sub || payload.sub !== claim.identitySubject) {
+            const err = new Error("TERMINAL_REVOCATION: IDENTITY_MISMATCH - ID token sub does not match external subject");
             (err as any).status = 401;
             throw err;
           }
+
+          if (payload.iss !== claim.identityIssuer) {
+            const err = new Error("TERMINAL_REVOCATION: IDENTITY_MISMATCH - ID token iss does not match external issuer");
+            (err as any).status = 401;
+            throw err;
+          }
+        } catch (e: any) {
+          console.error("Validation failed for refreshed ID token:", e?.message || e);
+          const err = new Error("TERMINAL_REVOCATION: INVALID_ID_TOKEN - Refreshed ID token validation failed");
+          (err as any).status = 401;
+          throw err;
         }
 
         return {

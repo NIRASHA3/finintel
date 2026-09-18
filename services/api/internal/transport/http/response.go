@@ -55,5 +55,5 @@ func writeSanitizedDbError(w http.ResponseWriter, err error, fallbackCode string
 			return
 		}
 	}
-	writeError(w, http.StatusBadRequest, fallbackCode, fallbackMsg)
+	writeError(w, http.StatusInternalServerError, fallbackCode, fallbackMsg)
 }

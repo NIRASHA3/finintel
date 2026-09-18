@@ -32,7 +32,7 @@ describe("BFF PostgreSQL Integration Suite (ci_bff_login)", () => {
   let oidcIssuer: string;
   let signingKey: CryptoKey;
   let jwk: Record<string, unknown>;
-  let tokenIdentity = { subject: "route-user", issuer: "" };
+  let tokenIdentity = { subject: "route-user", issuer: "", includeIDToken: true };
 
   async function signedIDToken(subject: string, issuer: string): Promise<string> {
     return new SignJWT({ sub: subject })
@@ -85,12 +85,15 @@ describe("BFF PostgreSQL Integration Suite (ci_bff_login)", () => {
         return;
       }
       if (req.url === "/token" && req.method === "POST") {
-        res.end(JSON.stringify({
+        const tokenResponse: Record<string, unknown> = {
           access_token: "route-access-v2",
           refresh_token: "route-refresh-v2",
-          id_token: await signedIDToken(tokenIdentity.subject, tokenIdentity.issuer || base),
           expires_in: 3600,
-        }));
+        };
+        if (tokenIdentity.includeIDToken) {
+          tokenResponse.id_token = await signedIDToken(tokenIdentity.subject, tokenIdentity.issuer || base);
+        }
+        res.end(JSON.stringify(tokenResponse));
         return;
       }
       res.statusCode = 404;
@@ -554,7 +557,7 @@ describe("BFF PostgreSQL Integration Suite (ci_bff_login)", () => {
   });
 
   it("11. HTTP refresh replay: rotated cookie revokes the user's other session", async () => {
-    tokenIdentity = { subject: "route-user", issuer: oidcIssuer };
+    tokenIdentity = { subject: "route-user", issuer: oidcIssuer, includeIDToken: true };
     const first = await createBFFSession({
       userID: testUserId8, identityIssuer: oidcIssuer, identitySubject: "route-user",
       accessToken: "route-access-v1", refreshToken: "route-refresh-v1",
@@ -576,7 +579,11 @@ describe("BFF PostgreSQL Integration Suite (ci_bff_login)", () => {
     ["subject", testUserId9, "expected-route-sub", "attacker-sub", false],
     ["issuer", testUserId10, "issuer-route-sub", "issuer-route-sub", true],
   ])("12. HTTP refresh signed ID-token %s mismatch revokes the session", async (_kind, userID, expectedSub, signedSub, wrongIssuer) => {
-    tokenIdentity = { subject: signedSub, issuer: wrongIssuer ? `${oidcIssuer}/wrong` : oidcIssuer };
+    tokenIdentity = {
+      subject: signedSub,
+      issuer: wrongIssuer ? `${oidcIssuer}/wrong` : oidcIssuer,
+      includeIDToken: true,
+    };
     const created = await createBFFSession({
       userID, identityIssuer: oidcIssuer, identitySubject: expectedSub,
       accessToken: "mismatch-access", refreshToken: "mismatch-refresh",
@@ -585,6 +592,25 @@ describe("BFF PostgreSQL Integration Suite (ci_bff_login)", () => {
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({
       error: "UNAUTHENTICATED", message: "Refresh token revoked or expired",
+    });
+    expect(await getBFFSessionByOpaqueID(created.opaqueSessionID)).toBeNull();
+  });
+
+  it("13. HTTP refresh without a new ID token fails closed and revokes the session", async () => {
+    tokenIdentity = { subject: "route-user", issuer: oidcIssuer, includeIDToken: false };
+    const created = await createBFFSession({
+      userID: testUserId8,
+      identityIssuer: oidcIssuer,
+      identitySubject: "route-user",
+      accessToken: "missing-id-access",
+      refreshToken: "missing-id-refresh",
+    });
+
+    const response = await refreshPOST(refreshRequest(created.opaqueSessionID, created.csrfToken));
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({
+      error: "UNAUTHENTICATED",
+      message: "Refresh token revoked or expired",
     });
     expect(await getBFFSessionByOpaqueID(created.opaqueSessionID)).toBeNull();
   });

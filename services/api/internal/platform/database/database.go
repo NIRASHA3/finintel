@@ -30,11 +30,25 @@ func NewPostgresPool(ctx context.Context, connString string, maxConns int32) (*P
 	}
 
 	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		_, err := conn.Exec(ctx, "SET ROLE finintel_app;")
+		var sessionUser string
+		var sessionSuperuser, sessionBypassRLS bool
+		err := conn.QueryRow(ctx, `
+			SELECT session_user, rolsuper, rolbypassrls
+			FROM pg_roles
+			WHERE rolname = session_user;
+		`).Scan(&sessionUser, &sessionSuperuser, &sessionBypassRLS)
+		if err != nil {
+			return fmt.Errorf("failed to verify database login role: %w", err)
+		}
+		if sessionSuperuser || sessionBypassRLS {
+			return fmt.Errorf("database login role '%s' must not be superuser or BYPASSRLS", sessionUser)
+		}
+
+		_, err = conn.Exec(ctx, "SET ROLE finintel_app;")
 		if err != nil {
 			return fmt.Errorf("failed to execute SET ROLE finintel_app on connection: %w", err)
 		}
-		var currentUser, sessionUser string
+		var currentUser string
 		err = conn.QueryRow(ctx, "SELECT current_user, session_user;").Scan(&currentUser, &sessionUser)
 		if err != nil {
 			return fmt.Errorf("failed to verify current_user on connection: %w", err)

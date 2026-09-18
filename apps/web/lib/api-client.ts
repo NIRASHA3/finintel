@@ -870,11 +870,11 @@ export async function updateMemberRole(orgId: string, memberId: string, role: st
   return res.json();
 }
 
-export async function addOrganizationMember(orgId: string, email: string, role: string): Promise<OrgMember> {
+export async function addOrganizationMember(orgId: string, userId: string, role: string): Promise<OrgMember> {
   const res = await apiFetch(`/api/v1/organizations/${orgId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, role }),
+    body: JSON.stringify({ user_id: userId, role }),
   });
 
   if (!res.ok) {
